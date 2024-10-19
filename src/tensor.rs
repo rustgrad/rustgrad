@@ -1,0 +1,129 @@
+use ndarray::{Array, ArrayBase, Dimension, OwnedRepr};
+use std::{
+    borrow::Borrow,
+    cell::RefCell,
+    collections::HashMap,
+    ops::{Add, Deref},
+    rc::Rc,
+};
+#[derive(Default, Debug)]
+pub struct Tensor<A, D: Dimension> {
+    pub data: Array<A, D>,
+    pub grad: Option<Array<A, D>>,
+    pub prev: Option<Add_<A, D>>,
+}
+// pub type Tensor<A, D> = Rc<RefCell<RawTensor<A, D>>>;
+
+// impl<A, D> Deref for Tensor<A, D> {
+//     type Target = Rc<RefCell<RawTensor<A, D>>>;
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// // }
+// enum ComputationOperation<A, D> {
+//     BinaryOp(Box<dyn BinaryOperation<A, D>>), // Node that performs a binary operation
+//     UnaryOp(Box<dyn UnaryOperation<A, D>>),   // Node that performs a unary operation
+//     TertiaryOp(Box<dyn TertiaryOperation<A, D>>),
+// }
+
+trait TertiaryOperation<A, D: Dimension> {
+    fn forward(
+        &self,
+        input_a: Tensor<A, D>,
+        input_b: Tensor<A, D>,
+        input_c: Tensor<A, D>,
+    ) -> Tensor<A, D>;
+    fn backward(&self, input: Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>, Tensor<A, D>);
+}
+
+trait UnaryOperation<A, D: Dimension> {
+    fn forward(&self, input: Tensor<A, D>) -> Tensor<A, D>;
+    fn backward(&self, input: Tensor<A, D>) -> Tensor<A, D>;
+}
+
+trait BinaryOperation<A, D: Dimension> {
+    fn forward(input_a: Tensor<A, D>, input_b: Tensor<A, D>) -> Tensor<A, D>;
+    fn backward(&self, input: Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>);
+}
+
+#[derive(Debug)]
+struct Add_<A, D: Dimension> {
+    first: Rc<RefCell<Tensor<A, D>>>,
+    second: Rc<RefCell<Tensor<A, D>>>,
+}
+impl<A, D> Add_<A, D>
+where
+    A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
+    D: Dimension,
+    ArrayBase<OwnedRepr<A>, D>: Add<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise addition is possible
+{
+    fn forward(input_a: Tensor<A, D>, input_b: Tensor<A, D>) -> Tensor<A, D> {
+        let data = input_a.data.clone() + input_b.data.clone();
+        let node = Add_ {
+            first: Rc::new(RefCell::new(input_a)),
+            second: Rc::new(RefCell::new(input_b)),
+        };
+        let result = Tensor {
+            data: data,
+            grad: None,
+            prev: Some(node),
+        };
+        result
+    }
+    fn backward(&mut self, output: &mut Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>) {
+        unimplemented!();
+        // let grad = output.grad.unwrap();
+        // let grad_a = grad.clone();
+        // let grad_b = grad.clone();
+        // (
+        //     Tensor {
+        //         data: grad_a,
+        //         grad: None,
+        //         prev: None,
+        //     },
+        //     Tensor {
+        //         data: grad_b,
+        //         grad: None,
+        //         prev: None,
+        //     },
+        // )
+    }
+}
+
+impl<D: Dimension, A: Add<Output = A> + Clone> Add for Tensor<A, D> {
+    type Output = Tensor<A, D>;
+    fn add(self, other: Tensor<A, D>) -> Tensor<A, D> {
+        Add_::forward(self, other)
+    }
+}
+
+pub fn add<A, D>(left: Array<A, D>, right: Array<A, D>) -> Array<A, D>
+where
+    A: Add<Output = A> + Clone,
+    D: Dimension,
+{
+    left + right
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let test_tensor = Tensor {
+            data: Array::from_vec(vec![1, 2, 3, 4]),
+            grad: None,
+            prev: None,
+        };
+        let test_tensor2 = Tensor {
+            data: Array::from_vec(vec![1, 2, 3, 4]),
+            grad: None,
+            prev: None,
+        };
+        let test3 = test_tensor + test_tensor2;
+        println!("{:?}", test3);
+        // println!("{:?}", test_tensor2);
+        panic!();
+    }
+}
