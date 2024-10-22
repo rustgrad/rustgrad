@@ -1,3 +1,5 @@
+pub mod engine;
+pub mod mlp;
 pub mod tensor;
 
 pub fn add(left: usize, right: usize) -> usize {
