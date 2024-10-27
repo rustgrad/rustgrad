@@ -14,11 +14,11 @@ pub struct MLP {
 #[derive(Debug)]
 pub struct LinearLayer {
     weight: Tensor<f64, Ix2>,
-    bias: Tensor<f64, Ix2>,
+    bias: Tensor<f64, Ix1>,
 }
 impl LinearLayer {
-    pub fn forward(self, x: Tensor<f64, Ix1>) -> Tensor<f64, Ix2> {
-        self.weight * x + self.bias
+    pub fn forward(self, x: Tensor<f64,Ix1>) -> Tensor<f64, Ix1> {
+        self.weight.mat_mul(x) + self.bias
     }
 }
 // impl MLP {
