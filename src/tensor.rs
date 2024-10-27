@@ -20,8 +20,8 @@ where
     A: Mul<Output = A> + Clone, // A must support element-wise multiplication and cloning
     A: num_traits::identities::Zero,
     A: num_traits::identities::One,
-    ArrayBase<OwnedRepr<A>, D>: Dot<ArrayBase<OwnedRepr<A>, D>, Output = ArrayBase<OwnedRepr<A>, D>>,
-
+    ArrayBase<OwnedRepr<A>, D>:
+        Dot<ArrayBase<OwnedRepr<A>, D>, Output = ArrayBase<OwnedRepr<A>, D>>,
 {
     pub fn backward(self) -> (Tensor<A, D>, Tensor<A, D>) {
         match self.prev.clone() {
@@ -36,7 +36,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub enum Operation<A, D: Dimension, E:Dimension> {
+pub enum Operation<A, D: Dimension, E: Dimension> {
     Add(TensorAdd<A, D>),
     Mul(TensorMul<A, D>),
     MatMul(TensorMatMul<A, D, E>),
@@ -89,12 +89,12 @@ where
     A: Clone + num_traits::One, // A must support element-wise multiplication and cloning
     D: Dimension,
     E: Dimension,
-    ArrayBase<OwnedRepr<A>, D>: Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, E>>,
-    ArrayBase<OwnedRepr<A>, E>: Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, D>>,
-    {
-    
-    pub fn forward(input_a: Tensor<A, D>, input_b: Tensor<A,E>) -> Tensor<A, E> {
-
+    ArrayBase<OwnedRepr<A>, D>:
+        Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, E>>,
+    ArrayBase<OwnedRepr<A>, E>:
+        Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, D>>,
+{
+    pub fn forward(input_a: Tensor<A, D>, input_b: Tensor<A, E>) -> Tensor<A, E> {
         let data_a = input_a.data.clone();
         let data_b = input_b.data.clone();
 
@@ -104,14 +104,14 @@ where
             first: Rc::new(RefCell::new(input_a)),
             second: Rc::new(RefCell::new(input_b)),
         };
-        let result : Tensor<A, E> = Tensor {
+        let result: Tensor<A, E> = Tensor {
             data: data,
             grad: None,
             prev: Some(Operation::MatMul(node)),
         };
         result
     }
-    pub fn backward(self, output: Tensor<A,E>) -> (Tensor<A, D>, Tensor<A, E>) {
+    pub fn backward(self, output: Tensor<A, E>) -> (Tensor<A, D>, Tensor<A, E>) {
         let grad = output.grad.unwrap_or(Array::ones(output.data.raw_dim()));
 
         let input_a = (*self.first).borrow().data.clone();
@@ -125,11 +125,10 @@ where
         // dL/dB  = A^T @ (dL/dC)
         let grad_b = input_a_t.dot(&grad);
 
-
         // A @ B = C
         // Ckm = Sum_n Akn * Bnm
         // dCjk/dAlm = d_j==l * d_i==m  Bik
-        // dCjk/dAlm = Bmk    
+        // dCjk/dAlm = Bmk
 
         // dCkm/dAij = delta(k=i)*Bjm
         // dL/dA_ij = dL/dC_km*dC_km/dA_ij
@@ -138,8 +137,7 @@ where
         // dL/dA = (dL/dC) @ B
         // dL/dA = B @ (dL/dC)^T
         let grad_t = grad.reversed_axes();
-    let grad_a = input_b.dot(&grad_t);
-
+        let grad_a = input_b.dot(&grad_t);
 
         (
             Tensor {
@@ -261,11 +259,14 @@ impl<D: Dimension, A: Clone> Tensor<A, D>
 where
     A: num_traits::One,
 {
-    pub fn mat_mul<E: Dimension>(self, other: Tensor<A, E>) -> Tensor<A, E> where 
-    ArrayBase<OwnedRepr<A>, D>: Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, E>>,
-    ArrayBase<OwnedRepr<A>, E>: Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, E>>
+    pub fn mat_mul<E: Dimension>(self, other: Tensor<A, E>) -> Tensor<A, E>
+    where
+        ArrayBase<OwnedRepr<A>, D>:
+            Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, E>>,
+        ArrayBase<OwnedRepr<A>, E>:
+            Dot<ArrayBase<OwnedRepr<A>, E>, Output = ArrayBase<OwnedRepr<A>, E>>,
     {
-        TensorMatMul::<A,D,E>::forward(self, other)
+        TensorMatMul::<A, D, E>::forward(self, other)
     }
 }
 

@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use crate::tensor::Tensor;
 use ndarray::array;
 use ndarray::Array;
