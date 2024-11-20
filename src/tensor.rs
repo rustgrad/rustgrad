@@ -41,6 +41,9 @@ impl<D: Dimension> Tensor<D>
             }
         };
     }
+    pub fn shape(&self) -> D {
+        self.data.raw_dim()
+    }
 }
 
 #[derive(Debug, Clone)]
