@@ -202,46 +202,46 @@ trait BinaryOperation<A, D: Dimension> {
 //     }
 // }
 
-#[derive(Debug, Clone)]
-struct TensorMul<D: Dimension> {
-    first: Rc<RefCell<Tensor<D>>>,
-    second: Rc<RefCell<Tensor<D>>>,
-}
+// #[derive(Debug, Clone)]
+// struct TensorMul<D: Dimension> {
+//     first: Rc<RefCell<Tensor<D>>>,
+//     second: Rc<RefCell<Tensor<D>>>,
+// }
 
-impl<D> TensorMul<D>
-where
-    // A: Mul<Output = A> + Clone + num_traits::One, // A must support element-wise multiplication and cloning
-    D: Dimension,
-    // ArrayBase<OwnedRepr<A>, D>: Mul<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise multiplication is possible
-    // A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
-    // A: Mul<Output = A> + Clone, // A must support element-wise multiplication and cloning
-    // A: num_traits::identities::Zero,
-    // A: num_traits::identities::One,
-{
-    pub fn forward(input_a: Tensor<D>, input_b: Tensor<D>) -> Tensor<D> {
-        let data = input_a.data.clone() * input_b.data.clone();
-        let node = TensorMul {
-            first: Rc::new(RefCell::new(input_a)),
-            second: Rc::new(RefCell::new(input_b)),
-        };
-        let result = Tensor {
-            data: data,
-            grad: None,
-            prev: Some(Operation::Mul(node)),
-        };
-        result
-    }
-    pub fn backward(&mut self, output: &mut Tensor<D>) {
-        let grad = output
-            .grad
-            .clone()
-            .unwrap_or(Array::ones(output.data.raw_dim()));
-        let grad_a = grad.clone() * (*self.second).borrow().data.clone();
-        let grad_b = grad.clone() * (*self.first).borrow().data.clone();
-        self.first.borrow_mut().backward(grad_a);
-        self.second.borrow_mut().backward(grad_b);
-    }
-}
+// impl<D> TensorMul<D>
+// where
+//     // A: Mul<Output = A> + Clone + num_traits::One, // A must support element-wise multiplication and cloning
+//     D: Dimension,
+//     // ArrayBase<OwnedRepr<A>, D>: Mul<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise multiplication is possible
+//     // A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
+//     // A: Mul<Output = A> + Clone, // A must support element-wise multiplication and cloning
+//     // A: num_traits::identities::Zero,
+//     // A: num_traits::identities::One,
+// {
+//     pub fn forward(input_a: RefTensor<D>, input_b: Tensor<D>) -> Tensor<D> {
+//         let data = input_a.data.clone() * input_b.data.clone();
+//         let node = TensorMul {
+//             first: Rc::new(RefCell::new(input_a)),
+//             second: Rc::new(RefCell::new(input_b)),
+//         };
+//         let result = Tensor {
+//             data: data,
+//             grad: None,
+//             prev: Some(Operation::Mul(node)),
+//         };
+//         result
+//     }
+//     pub fn backward(&mut self, output: &mut Tensor<D>) {
+//         let grad = output
+//             .grad
+//             .clone()
+//             .unwrap_or(Array::ones(output.data.raw_dim()));
+//         let grad_a = grad.clone() * (*self.second).borrow().data.clone();
+//         let grad_b = grad.clone() * (*self.first).borrow().data.clone();
+//         self.first.borrow_mut().backward(grad_a);
+//         self.second.borrow_mut().backward(grad_b);
+//     }
+// }
 #[derive(Debug, Clone)]
 struct RefTensorMul<D: Dimension> {
     first: RefTensor<D>,
@@ -258,7 +258,7 @@ where
     // A: num_traits::identities::Zero,
     // A: num_traits::identities::One,
 {
-    pub fn ref_forward(input_a: RefTensor<D>, input_b: RefTensor<D>) -> RefTensor<D> {
+    pub fn forward(input_a: RefTensor<D>, input_b: RefTensor<D>) -> RefTensor<D> {
         let data_a = (*input_a.ref_tensor).borrow().data.clone();
         let data_b = (*input_b.ref_tensor).borrow().data.clone();
         let data = data_a * data_b;
@@ -269,12 +269,10 @@ where
         let result = RefTensor::new(data, None, Some(Operation::Mul(node)));
         result
     }
-    pub fn ref_backward(&mut self, output: &mut Tensor<D>) {
-        let grad = output
-            .grad
-            .clone()
-            .unwrap_or(Array::ones(output.data.raw_dim()));
-        let grad_a = grad.clone() * (*self.second).borrow().data.clone();
+    pub fn backward(&mut self, output: &mut RefTensor<D>) {
+        let shape = output.shape();
+        let grad = output.grad.clone().unwrap_or(Array::ones(shape));
+        let grad_a = grad * (*self.second).borrow().data.clone();
         let grad_b = grad.clone() * (*self.first).borrow().data.clone();
         self.first.borrow_mut().backward(grad_a);
         self.second.borrow_mut().backward(grad_b);
@@ -372,7 +370,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let test_tensor = RefTensor::new(array![[1.0, 2.0], [3.0, 4.0]]);
+        let test_tensor = RefTensor::new_with_data(array![[1.0, 2.0], [3.0, 4.0]]);
         // let test_tensor2 = Tensor {
         //     data: array![[1.0, 2.0, 3.0, 4.0]],
         //     grad: None,

@@ -10,11 +10,13 @@ use std::{
     process::Output,
     rc::Rc,
 };
+use uuid::Uuid;
 #[derive(Default, Debug, Clone)]
 pub struct Tensor<D: Dimension> {
     pub data: Array<f32, D>,
     pub grad: Option<Array<f32, D>>,
     pub prev: Option<Operation<D>>,
+    pub uuid: Uuid,
 }
 
 impl<D: Dimension> Tensor<D>
@@ -26,6 +28,34 @@ impl<D: Dimension> Tensor<D>
 // ArrayBase<OwnedRepr<A>, D>:
 //     Dot<ArrayBase<OwnedRepr<A>, D>, Output = ArrayBase<OwnedRepr<A>, D>>,
 {
+    pub fn new_with_data(data: Array<f32, D>) -> Tensor<D> {
+        Tensor {
+            data: data,
+            grad: None,
+            prev: None,
+            uuid: Uuid::new_v4(),
+        }
+    }
+    pub fn new(
+        data: Array<f32, D>,
+        grad: Option<Array<f32, D>>,
+        prev: Option<Operation<D>>,
+    ) -> Tensor<D> {
+        Tensor {
+            data: data,
+            grad: grad,
+            prev: prev,
+            uuid: Uuid::new_v4(),
+        }
+    }
+    pub fn new_with_data_prev(data: Array<f32, D>, prev: Operation<D>) -> Tensor<D> {
+        Tensor {
+            data: data,
+            grad: None,
+            prev: Some(prev),
+            uuid: Uuid::new_v4(),
+        }
+    }
     pub fn backward(&mut self, grad: Array<f32, D>) {
         self.grad = Some(
             self.grad
@@ -182,12 +212,7 @@ where
             first: Rc::new(RefCell::new(input_a)),
             second: Rc::new(RefCell::new(input_b)),
         };
-        let result = Tensor {
-            data: data,
-            grad: None,
-            prev: Some(Operation::Mul(node)),
-        };
-        result
+        Tensor::new_with_data_prev(data, Operation::Mul(node))
     }
     pub fn backward(&mut self, output: &mut Tensor<D>) {
         let grad = output
@@ -213,12 +238,7 @@ impl<D: Dimension> TensorAdd<D> {
             first: Rc::new(RefCell::new(input_a)),
             second: Rc::new(RefCell::new(input_b)),
         };
-        let result = Tensor {
-            data: data,
-            grad: None,
-            prev: Some(Operation::Add(node)),
-        };
-        result
+        Tensor::new_with_data_prev(data, Operation::Add(node))
     }
     fn backward(&mut self, output: &mut Tensor<D>) {
         let grad = output
@@ -277,17 +297,9 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let test_tensor = Tensor {
-            data: array![[1.0, 2.0, 3.0, 4.0]],
-            grad: None,
-            prev: None,
-        };
-        let test_tensor2 = Tensor {
-            data: array![[1.0, 2.0, 3.0, 4.0]],
-            grad: None,
-            prev: None,
-        };
-        let test3 = test_tensor + test_tensor2;
+        let test_tensor = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]]);
+        let test_tensor_2 = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]]);
+        let test3 = test_tensor + test_tensor;
         let mut test3 = test3.clone() * test3;
         println!("forward: {:?}", test3);
         println!("_____________________________");
