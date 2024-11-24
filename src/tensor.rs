@@ -1,9 +1,11 @@
 use ndarray::{
     linalg::Dot, Array, ArrayBase, AsArray, Dimension, IxDyn, OwnedRepr, ShapeBuilder, ViewRepr,
 };
+use ndarray_rand::rand::Error;
 use std::{
     cell::{Ref, RefCell},
     collections::HashMap,
+    hash::Hash,
     ops::{Add, Deref, Mul},
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
@@ -18,7 +20,7 @@ static COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub struct Tensor {
     pub data: Array<f32, IxDyn>,
     pub grad: Option<Array<f32, IxDyn>>,
-    pub prev: Option<Operation>,
+    pub prev_op: Option<Operation>,
     pub id: usize,
 }
 
@@ -31,11 +33,25 @@ impl Tensor
 // ArrayBase<OwnedRepr<A>, D>:
 //     Dot<ArrayBase<OwnedRepr<A>, D>, Output = ArrayBase<OwnedRepr<A>, D>>,
 {
+    pub fn view(self) -> TensorView {
+        TensorView {
+            tensor: Rc::new(RefCell::new(self)),
+        }
+    }
+
+    pub fn copy_clean(&self) -> Tensor {
+        Tensor {
+            data: self.data.clone(),
+            grad: None,
+            prev_op: None,
+            id: self.id,
+        }
+    }
     pub fn new_with_data(data: Array<f32, IxDyn>) -> Tensor {
         Tensor {
             data: data,
             grad: None,
-            prev: None,
+            prev_op: None,
             id: COUNTER.fetch_add(1, Ordering::SeqCst),
         }
     }
@@ -47,7 +63,7 @@ impl Tensor
         Tensor {
             data: data,
             grad: grad,
-            prev: prev,
+            prev_op: prev,
             id: COUNTER.fetch_add(1, Ordering::SeqCst),
         }
     }
@@ -55,7 +71,7 @@ impl Tensor
         Tensor {
             data: data,
             grad: None,
-            prev: Some(prev),
+            prev_op: Some(prev),
             id: COUNTER.fetch_add(1, Ordering::SeqCst),
         }
     }
@@ -66,11 +82,11 @@ impl Tensor
                 .unwrap_or(Array::zeros(self.data.raw_dim()))
                 + grad,
         );
-        match self.prev.clone() {
+        match self.prev_op.clone() {
             Some(Operation::Add(mut node)) => node.backward(self),
             Some(Operation::Mul(mut node)) => node.backward(self),
             None => {
-                print!("No previous operation");
+                println!("No previous operation");
             }
         };
     }
@@ -85,15 +101,21 @@ pub enum Operation {
     Mul(TensorMul),
     // MatMul(TensorMatMul<A, D, E>),
 }
-
-pub struct RefTensor {
-    pub ref_tensor: Rc<RefCell<Tensor>>,
+fn inputs(operation: Operation) -> Vec<usize> {
+    match operation {
+        Operation::Add(node) => node.inputs(),
+        Operation::Mul(node) => node.inputs(),
+    }
 }
 
-// impl<A, D: Dimension> Deref for RefTensor< D> {
-//     type Target = Ref< Tensor< D>>;
+pub struct TensorView {
+    pub tensor: Rc<RefCell<Tensor>>,
+}
+
+// impl Deref for RefTensor<'a> {
+//     type Target = Ref<Tensor>;
 //     fn deref(&self) -> Self::Target {
-//         self.ref_tensor.borrow()
+//         self.tensor.borrow()
 //     }
 // }
 // enum ComputationOperation<A, D> {
@@ -195,8 +217,8 @@ trait BinaryOperation<A, D: Dimension> {
 
 #[derive(Debug, Clone)]
 struct TensorMul {
-    first: Rc<RefCell<Tensor>>,
-    second: Rc<RefCell<Tensor>>,
+    first: Box<Tensor>,
+    second: Box<Tensor>,
 }
 
 impl TensorMul
@@ -212,8 +234,8 @@ impl TensorMul
     pub fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
         let data = input_a.data.clone() * input_b.data.clone();
         let node = TensorMul {
-            first: Rc::new(RefCell::new(input_a)),
-            second: Rc::new(RefCell::new(input_b)),
+            first: Box::new(input_a),
+            second: Box::new(input_b),
         };
         Tensor::new_with_data_prev(data, Operation::Mul(node))
     }
@@ -222,24 +244,27 @@ impl TensorMul
             .grad
             .clone()
             .unwrap_or(Array::ones(output.data.raw_dim()));
-        let grad_a = grad.clone() * (*self.second).borrow().data.clone();
-        let grad_b = grad.clone() * (*self.first).borrow().data.clone();
-        self.first.borrow_mut().backward(grad_a);
-        self.second.borrow_mut().backward(grad_b);
+        let grad_a = grad.clone() * self.second.data.clone();
+        let grad_b = grad.clone() * self.first.data.clone();
+        self.first.backward(grad_a);
+        self.second.backward(grad_b);
+    }
+    pub fn inputs(self) -> Vec<usize> {
+        vec![self.first.id, self.second.id]
     }
 }
 
 #[derive(Debug, Clone)]
 struct TensorAdd {
-    first: Rc<RefCell<Tensor>>,
-    second: Rc<RefCell<Tensor>>,
+    first: Box<Tensor>,
+    second: Box<Tensor>,
 }
 impl TensorAdd {
     fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
         let data = input_a.data.clone() + input_b.data.clone();
         let node = TensorAdd {
-            first: Rc::new(RefCell::new(input_a)),
-            second: Rc::new(RefCell::new(input_b)),
+            first: Box::new(input_a),
+            second: Box::new(input_b),
         };
         Tensor::new_with_data_prev(data, Operation::Add(node))
     }
@@ -250,8 +275,11 @@ impl TensorAdd {
             .unwrap_or(ndarray::Array::zeros(output.data.raw_dim()));
         let grad_a = grad.clone();
         let grad_b = grad.clone();
-        self.first.borrow_mut().backward(grad_a);
-        self.second.borrow_mut().backward(grad_b);
+        self.first.backward(grad_a);
+        self.second.backward(grad_b);
+    }
+    pub fn inputs(self) -> Vec<usize> {
+        vec![self.first.id, self.second.id]
     }
 }
 
@@ -291,10 +319,52 @@ where
     left + right
 }
 
-struct Graph {
-    nodes: HashMap<usize, Tensor>,
-    edges: HashMap<usize, Vec<usize>>,
-}
+// fn backward(mut loss_tensor: Tensor) {
+//     let mut nodes = HashMap::new();
+//     let mut depth: HashMap<usize, Vec<usize>> = HashMap::new();
+//     let mut edges: HashMap<usize, Operation> = HashMap::new();
+//     let mut next_layer: Vec<(Option<Operation>, usize)> = Vec::new();
+//     let mut current_layer: Vec<(Option<Operation>, usize)> = Vec::new();
+//     let loss_tensor_id = loss_tensor.id.clone();
+//     current_layer.push((loss_tensor.prev_op.take(), loss_tensor_id));
+//     nodes.insert(loss_tensor_id, loss_tensor);
+//     while !current_layer.is_empty() {
+//         for (operation, id) in current_layer {
+//             if operation.is_none() {
+//                 continue;
+//             }
+//             let operation = operation.unwrap();
+//             let tensor = nodes.get_mut(&id).unwrap();
+//             let inputs = inputs(operation);
+//             for input in inputs {
+//                 let input_tensor = nodes.get_mut(&input).unwrap();
+//                 let input_depth = depth.get(&id).unwrap() + 1;
+//                 let input_edges = edges.get_mut(&input).unwrap();
+//                 input_edges.push(operation.clone());
+//                 depth.insert(input, input_depth);
+//                 next_layer.push((input_edges, input));
+//             }
+//         }
+//         current_layer = next_layer;
+//         next_layer = Vec::new();
+//     }
+// }
+// fn construct(
+//     tensor: &mut Tensor,
+//     nodes: &mut HashMap<usize, Tensor>,
+//     depth: &mut HashMap<usize, Vec<usize>>,
+// ) -> Option<()> {
+//     nodes.insert(tensor.id, tensor.copy_clean());
+
+//     let operation = tensor.prev_op?;
+//     let inputs = inputs(operation);
+//     let depth = depth.get(&tensor.id)?;
+//     for input in inputs {
+//         let input_tensor = nodes.get(&input)?;
+//         let input_depth = depth + 1;
+//     }
+//     None
+// }
 
 #[cfg(test)]
 mod tests {
@@ -306,20 +376,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let test = array![[1.0, 2.0, 3.0, 4.0]].into_dyn();
-        let test2 = array![[1.0, 2.0, 3.0, 4.0]].into_dyn();
-        let test4 = test.dot(&test2);
-        let test_tensor = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
-        let test_tensor_2 = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
-        let test3 = test_tensor.clone() + test_tensor;
-        let mut test3 = test3.clone() * test3;
-        println!("forward: {:?}", test3);
-        println!("_____________________________");
-        let start_grad = Array::ones(test3.data.raw_dim());
-        test3.backward(start_grad);
+    fn test_complicated() {
+        // let test_0: TensorView = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
+        // let test_1 = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
+        // let test_2 = test_0.clone() + test_1.clone();
+        // let mut test_3: Tensor = test_2.clone() + test_1;
+        // println!("forward: {:?}", test_2);
+        // println!("_____________________________");
+        // let start_grad = Array::ones(test_2.data.raw_dim());
+        // test_3.backward(start_grad);
 
-        pretty_print(&test3);
+        // pretty_print(&test_2);
+        // println!("{:?}", test_tensor2);
+    }
+    #[test]
+    fn it_works() {
+        let mut test = array![[1.0, 2.0, 3.0, 4.0]].into_dyn();
+        let test2 = array![[1.0, 2.0, 3.0, 4.0]].into_dyn();
+        let test3 = test.clone();
+
+        test[[0, 0]] = 2.0;
+        println!("{:?}", test);
+        println!("{:?}", test3);
+        panic!();
+        let test_0 = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = test_0.clone() + test_0; // grad_2 = 2 * test_1
+        let mut test_2: Tensor = test_1.clone() * test_1;
+        println!("forward: {:?}", test_2);
+        println!("_____________________________");
+        let start_grad = Array::ones(test_2.data.raw_dim());
+        test_2.backward(start_grad);
+
+        pretty_print(&test_2);
         // println!("{:?}", test_tensor2);
     }
     fn pretty_print(tensor: &Tensor) {
@@ -327,19 +415,19 @@ mod tests {
             "Tensor: {:?}, Gradient {:?}, id: {:?}",
             tensor.data, tensor.grad, tensor.id
         );
-        pretty_print_operation(tensor.prev.as_ref());
+        pretty_print_operation(tensor.prev_op.as_ref());
     }
     fn pretty_print_operation(operation: Option<&Operation>) {
         match operation {
             Some(Operation::Add(node)) => {
                 println!("Addition");
-                pretty_print(&node.first.borrow());
-                pretty_print(&node.second.borrow());
+                pretty_print(&node.first);
+                pretty_print(&node.second);
             }
             Some(Operation::Mul(node)) => {
                 println!("Multiplication");
-                pretty_print(&node.first.borrow());
-                pretty_print(&node.second.borrow());
+                pretty_print(&node.first);
+                pretty_print(&node.second);
             }
             None => {
                 println!("None");
