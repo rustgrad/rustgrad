@@ -14,7 +14,6 @@ pub struct IDCounter {
 }
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-use uuid::Uuid;
 #[derive(Default, Debug, Clone)]
 pub struct Tensor {
     pub data: Array<f32, IxDyn>,
@@ -294,10 +293,13 @@ where
 
 struct Graph {
     nodes: HashMap<usize, Tensor>,
+    edges: HashMap<usize, Vec<usize>>,
 }
 
 #[cfg(test)]
 mod tests {
+    use std::array;
+
     use ndarray::array;
     use ndarray::{linalg::Dot, Array, ArrayBase, AsArray, Dimension, OwnedRepr, ViewRepr};
 
@@ -305,6 +307,9 @@ mod tests {
 
     #[test]
     fn it_works() {
+        let test = array![[1.0, 2.0, 3.0, 4.0]].into_dyn();
+        let test2 = array![[1.0, 2.0, 3.0, 4.0]].into_dyn();
+        let test4 = test.dot(&test2);
         let test_tensor = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
         let test_tensor_2 = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
         let test3 = test_tensor.clone() + test_tensor;

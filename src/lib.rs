@@ -1,5 +1,6 @@
 pub mod engine;
 pub mod mlp;
+pub mod ops;
 pub mod ref_tensor;
 pub mod tensor;
 
