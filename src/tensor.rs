@@ -1,25 +1,29 @@
 use ndarray::{
-    linalg::Dot, Array, ArrayBase, AsArray, Dimension, OwnedRepr, ShapeBuilder, ViewRepr,
+    linalg::Dot, Array, ArrayBase, AsArray, Dimension, IxDyn, OwnedRepr, ShapeBuilder, ViewRepr,
 };
-use num_traits::identities::Zero;
 use std::{
-    borrow::Borrow,
     cell::{Ref, RefCell},
     collections::HashMap,
     ops::{Add, Deref, Mul},
-    process::Output,
     rc::Rc,
+    sync::atomic::{AtomicUsize, Ordering},
 };
+
+pub struct IDCounter {
+    id: usize,
+}
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
 use uuid::Uuid;
 #[derive(Default, Debug, Clone)]
-pub struct Tensor<D: Dimension> {
-    pub data: Array<f32, D>,
-    pub grad: Option<Array<f32, D>>,
-    pub prev: Option<Operation<D>>,
-    pub uuid: Uuid,
+pub struct Tensor {
+    pub data: Array<f32, IxDyn>,
+    pub grad: Option<Array<f32, IxDyn>>,
+    pub prev: Option<Operation>,
+    pub id: usize,
 }
 
-impl<D: Dimension> Tensor<D>
+impl Tensor
 // where
 //     A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
 //     A: Mul<Output = A> + Clone, // A must support element-wise multiplication and cloning
@@ -28,35 +32,35 @@ impl<D: Dimension> Tensor<D>
 // ArrayBase<OwnedRepr<A>, D>:
 //     Dot<ArrayBase<OwnedRepr<A>, D>, Output = ArrayBase<OwnedRepr<A>, D>>,
 {
-    pub fn new_with_data(data: Array<f32, D>) -> Tensor<D> {
+    pub fn new_with_data(data: Array<f32, IxDyn>) -> Tensor {
         Tensor {
             data: data,
             grad: None,
             prev: None,
-            uuid: Uuid::new_v4(),
+            id: COUNTER.fetch_add(1, Ordering::SeqCst),
         }
     }
     pub fn new(
-        data: Array<f32, D>,
-        grad: Option<Array<f32, D>>,
-        prev: Option<Operation<D>>,
-    ) -> Tensor<D> {
+        data: Array<f32, IxDyn>,
+        grad: Option<Array<f32, IxDyn>>,
+        prev: Option<Operation>,
+    ) -> Tensor {
         Tensor {
             data: data,
             grad: grad,
             prev: prev,
-            uuid: Uuid::new_v4(),
+            id: COUNTER.fetch_add(1, Ordering::SeqCst),
         }
     }
-    pub fn new_with_data_prev(data: Array<f32, D>, prev: Operation<D>) -> Tensor<D> {
+    pub fn new_with_data_prev(data: Array<f32, IxDyn>, prev: Operation) -> Tensor {
         Tensor {
             data: data,
             grad: None,
             prev: Some(prev),
-            uuid: Uuid::new_v4(),
+            id: COUNTER.fetch_add(1, Ordering::SeqCst),
         }
     }
-    pub fn backward(&mut self, grad: Array<f32, D>) {
+    pub fn backward(&mut self, grad: Array<f32, IxDyn>) {
         self.grad = Some(
             self.grad
                 .clone()
@@ -71,20 +75,20 @@ impl<D: Dimension> Tensor<D>
             }
         };
     }
-    pub fn shape(&self) -> D {
+    pub fn shape(&self) -> IxDyn {
         self.data.raw_dim()
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Operation<D: Dimension> {
-    Add(TensorAdd<D>),
-    Mul(TensorMul<D>),
+pub enum Operation {
+    Add(TensorAdd),
+    Mul(TensorMul),
     // MatMul(TensorMatMul<A, D, E>),
 }
 
-pub struct RefTensor<D: Dimension> {
-    pub ref_tensor: Rc<RefCell<Tensor<D>>>,
+pub struct RefTensor {
+    pub ref_tensor: Rc<RefCell<Tensor>>,
 }
 
 // impl<A, D: Dimension> Deref for RefTensor< D> {
@@ -100,18 +104,18 @@ pub struct RefTensor<D: Dimension> {
 // }
 
 trait TertiaryOperation<D: Dimension> {
-    fn forward(&self, input_a: Tensor<D>, input_b: Tensor<D>, input_c: Tensor<D>) -> Tensor<D>;
-    fn backward(&self, input: Tensor<D>) -> (Tensor<D>, Tensor<D>, Tensor<D>);
+    fn forward(&self, input_a: Tensor, input_b: Tensor, input_c: Tensor) -> Tensor;
+    fn backward(&self, input: Tensor) -> (Tensor, Tensor, Tensor);
 }
 
 trait UnaryOperation<A, D: Dimension> {
-    fn forward(&self, input: Tensor<D>) -> Tensor<D>;
-    fn backward(&self, input: Tensor<D>) -> Tensor<D>;
+    fn forward(&self, input: Tensor) -> Tensor;
+    fn backward(&self, input: Tensor) -> Tensor;
 }
 
 trait BinaryOperation<A, D: Dimension> {
-    fn forward(input_a: Tensor<D>, input_b: Tensor<D>) -> Tensor<D>;
-    fn backward(&self, input: Tensor<D>) -> (Tensor<D>, Tensor<D>);
+    fn forward(input_a: Tensor, input_b: Tensor) -> Tensor;
+    fn backward(&self, input: Tensor) -> (Tensor, Tensor);
 }
 
 // #[derive(Debug, Clone)]
@@ -191,22 +195,22 @@ trait BinaryOperation<A, D: Dimension> {
 // }
 
 #[derive(Debug, Clone)]
-struct TensorMul<D: Dimension> {
-    first: Rc<RefCell<Tensor<D>>>,
-    second: Rc<RefCell<Tensor<D>>>,
+struct TensorMul {
+    first: Rc<RefCell<Tensor>>,
+    second: Rc<RefCell<Tensor>>,
 }
 
-impl<D> TensorMul<D>
-where
-    // A: Mul<Output = A> + Clone + num_traits::One, // A must support element-wise multiplication and cloning
-    D: Dimension,
-    // ArrayBase<OwnedRepr<A>, D>: Mul<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise multiplication is possible
-    // A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
-    // A: Mul<Output = A> + Clone, // A must support element-wise multiplication and cloning
-    // A: num_traits::identities::Zero,
-    // A: num_traits::identities::One,
+impl TensorMul
+// where
+// A: Mul<Output = A> + Clone + num_traits::One, // A must support element-wise multiplication and cloning
+// D: Dimension,
+// ArrayBase<OwnedRepr<A>, D>: Mul<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise multiplication is possible
+// A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
+// A: Mul<Output = A> + Clone, // A must support element-wise multiplication and cloning
+// A: num_traits::identities::Zero,
+// A: num_traits::identities::One,
 {
-    pub fn forward(input_a: Tensor<D>, input_b: Tensor<D>) -> Tensor<D> {
+    pub fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
         let data = input_a.data.clone() * input_b.data.clone();
         let node = TensorMul {
             first: Rc::new(RefCell::new(input_a)),
@@ -214,7 +218,7 @@ where
         };
         Tensor::new_with_data_prev(data, Operation::Mul(node))
     }
-    pub fn backward(&mut self, output: &mut Tensor<D>) {
+    pub fn backward(&mut self, output: &mut Tensor) {
         let grad = output
             .grad
             .clone()
@@ -227,12 +231,12 @@ where
 }
 
 #[derive(Debug, Clone)]
-struct TensorAdd<D: Dimension> {
-    first: Rc<RefCell<Tensor<D>>>,
-    second: Rc<RefCell<Tensor<D>>>,
+struct TensorAdd {
+    first: Rc<RefCell<Tensor>>,
+    second: Rc<RefCell<Tensor>>,
 }
-impl<D: Dimension> TensorAdd<D> {
-    fn forward(input_a: Tensor<D>, input_b: Tensor<D>) -> Tensor<D> {
+impl TensorAdd {
+    fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
         let data = input_a.data.clone() + input_b.data.clone();
         let node = TensorAdd {
             first: Rc::new(RefCell::new(input_a)),
@@ -240,7 +244,7 @@ impl<D: Dimension> TensorAdd<D> {
         };
         Tensor::new_with_data_prev(data, Operation::Add(node))
     }
-    fn backward(&mut self, output: &mut Tensor<D>) {
+    fn backward(&mut self, output: &mut Tensor) {
         let grad = output
             .grad
             .clone()
@@ -252,9 +256,9 @@ impl<D: Dimension> TensorAdd<D> {
     }
 }
 
-impl<D: Dimension> Add for Tensor<D> {
-    type Output = Tensor<D>;
-    fn add(self, other: Tensor<D>) -> Tensor<D> {
+impl Add for Tensor {
+    type Output = Tensor;
+    fn add(self, other: Tensor) -> Tensor {
         TensorAdd::forward(self, other)
     }
 }
@@ -274,9 +278,9 @@ impl<D: Dimension> Add for Tensor<D> {
 //     }
 // }
 
-impl<D: Dimension> Mul for Tensor<D> {
-    type Output = Tensor<D>;
-    fn mul(self, other: Tensor<D>) -> Tensor<D> {
+impl Mul for Tensor {
+    type Output = Tensor;
+    fn mul(self, other: Tensor) -> Tensor {
         TensorMul::forward(self, other)
     }
 }
@@ -288,6 +292,10 @@ where
     left + right
 }
 
+struct Graph {
+    nodes: HashMap<usize, Tensor>,
+}
+
 #[cfg(test)]
 mod tests {
     use ndarray::array;
@@ -297,16 +305,40 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let test_tensor = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]]);
-        let test_tensor_2 = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]]);
-        let test3 = test_tensor + test_tensor;
+        let test_tensor = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
+        let test_tensor_2 = Tensor::new_with_data(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
+        let test3 = test_tensor.clone() + test_tensor;
         let mut test3 = test3.clone() * test3;
         println!("forward: {:?}", test3);
         println!("_____________________________");
         let start_grad = Array::ones(test3.data.raw_dim());
         test3.backward(start_grad);
-        println!("backward: {:?}", test3);
-        println!("backward: {:?}", test3);
+
+        pretty_print(&test3);
         // println!("{:?}", test_tensor2);
+    }
+    fn pretty_print(tensor: &Tensor) {
+        println!(
+            "Tensor: {:?}, Gradient {:?}, id: {:?}",
+            tensor.data, tensor.grad, tensor.id
+        );
+        pretty_print_operation(tensor.prev.as_ref());
+    }
+    fn pretty_print_operation(operation: Option<&Operation>) {
+        match operation {
+            Some(Operation::Add(node)) => {
+                println!("Addition");
+                pretty_print(&node.first.borrow());
+                pretty_print(&node.second.borrow());
+            }
+            Some(Operation::Mul(node)) => {
+                println!("Multiplication");
+                pretty_print(&node.first.borrow());
+                pretty_print(&node.second.borrow());
+            }
+            None => {
+                println!("None");
+            }
+        };
     }
 }
