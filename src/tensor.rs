@@ -43,18 +43,16 @@ impl Tensor {
         }
     }
     pub fn backward(&mut self) {
-        // This is a leaf node, we need to build the graph
-        self.build_graph();
-
+        // This is a leaf node, we need to build the graphs
         let start_grad = Array::ones(self.shape());
+        self.add_consumer();
         self.backward_internal(start_grad);
     }
 
     pub fn backward_internal(&mut self, grad: Array<f32, IxDyn>) {
         let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
         self.container.deref().borrow_mut().grad = Some(new_grad);
-
-        self.container.deref().borrow_mut().num_consumers -= 1;
+        self.remove_consumer();
         if self.container.borrow().num_consumers > 0 {
             return;
         }
@@ -83,25 +81,11 @@ impl Tensor {
         };
     }
 
-    pub fn build_graph(&mut self) {
+    pub fn add_consumer(&mut self) {
         self.container.deref().borrow_mut().num_consumers += 1;
-        if self.container.borrow().num_consumers > 1 {
-            return;
-        } else {
-            match self.prev_op.clone() {
-                Some(Operation::Add(mut node)) => {
-                    node.first.build_graph();
-                    node.second.build_graph();
-                }
-                Some(Operation::Mul(mut node)) => {
-                    node.first.build_graph();
-                    node.second.build_graph();
-                }
-                None => {
-                    println!("No previous operation");
-                }
-            };
-        }
+    }
+    pub fn remove_consumer(&mut self) {
+        self.container.deref().borrow_mut().num_consumers -= 1;
     }
 
     pub fn shape(&self) -> IxDyn {
@@ -137,7 +121,9 @@ struct TensorMul {
 }
 
 impl TensorMul {
-    pub fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
+    pub fn forward(mut input_a: Tensor, mut input_b: Tensor) -> Tensor {
+        input_a.add_consumer();
+        input_b.add_consumer();
         let result =
             input_a.container.borrow().array.clone() * input_b.container.borrow().array.clone();
         let node = TensorMul {
@@ -162,7 +148,9 @@ struct TensorAdd {
     second: Box<Tensor>,
 }
 impl TensorAdd {
-    fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
+    fn forward(mut input_a: Tensor, mut input_b: Tensor) -> Tensor {
+        input_a.add_consumer();
+        input_b.add_consumer();
         let result =
             input_a.container.borrow().array.clone() + input_b.container.borrow().array.clone();
         let node = TensorAdd {
