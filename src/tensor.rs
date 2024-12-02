@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-
 #[derive(Default, Debug, Clone)]
 pub struct DataContainer {
     pub array: Array<f32, IxDyn>,
@@ -148,12 +147,8 @@ impl TensorMul {
         Tensor::new_with_prev(result, Operation::Mul(node))
     }
     pub fn backward(&mut self, output: &mut Tensor) {
-        let grad = output
-            .container
-            .borrow()
-            .grad
-            .clone()
-            .unwrap_or(Array::ones(output.shape()));
+        let grad = output.container.borrow().grad.clone();
+        let grad = grad.unwrap_or(Array::ones(output.shape()));
         let grad_a = grad.clone() * self.second.container.borrow().array.clone();
         let grad_b = grad.clone() * self.first.container.borrow().array.clone();
         self.first.backward_internal(grad_a);
@@ -177,12 +172,8 @@ impl TensorAdd {
         Tensor::new_with_prev(result, Operation::Add(node))
     }
     fn backward(&mut self, output: &mut Tensor) {
-        let grad = output
-            .container
-            .borrow()
-            .grad
-            .clone()
-            .unwrap_or(ndarray::Array::zeros(output.shape()));
+        let maybe_grad = output.container.borrow().grad.clone();
+        let grad = maybe_grad.unwrap_or(ndarray::Array::zeros(output.shape()));
         let grad_a = grad.clone();
         let grad_b = grad.clone();
         self.first.backward_internal(grad_a);
