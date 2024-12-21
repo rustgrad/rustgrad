@@ -10,3 +10,4 @@ ndarray = "0.16.1"
 num-traits = "0.2.19"
 ndarray-rand = "0.15.0"
 uuid = { version = "1.11.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+priority-queue= "2.1.1"
