@@ -78,14 +78,6 @@ impl Tensor {
         let start_grad = Array::ones(self.shape());
         self.backward_internal(start_grad);
     }
-    fn add_grad(&self, grad: Array<f32, IxDyn>) {
-        let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
-        self.container.deref().borrow_mut().grad = Some(new_grad);
-        self.container.deref().borrow_mut().num_consumers -= 1;
-    }
-    fn consumers(&self) -> usize {
-        (*self.container).borrow().num_consumers
-    }
 
     pub fn queue_backward(&mut self) {
         self.build_graph();
@@ -99,34 +91,32 @@ impl Tensor {
         let mut queue: PriorityQueue<HashTensor, Reverse<usize>> = PriorityQueue::new();
         queue.push(self.clone().into(), Reverse(self.consumers()));
         while !queue.is_empty() {
-            let (tensor, priority) = queue.pop().expect("Queue should not be empty");
+            let (hash_tensor, priority) = queue.pop().expect("Queue should not be empty");
+            let tensor: Tensor = hash_tensor.into();
             if priority.0 > 0 {
                 panic!("Did not find ready tensor");
             }
-            let operation = tensor.0.prev_op.clone();
+            let operation = tensor.prev_op.clone();
             if operation.is_none() {
                 continue;
             }
-            let grads = operation.unwrap().grad(&tensor.0);
+            let grads = operation.unwrap().grad(&tensor);
             for (grad, tensor) in grads {
                 tensor.add_grad(grad);
-                let priority = tensor.consumers();
-                queue.push(tensor.into(), Reverse(priority));
+                let priority = Reverse(tensor.consumers());
+                queue.push(tensor.into(), priority);
             }
         }
     }
 
-    pub fn backward_internal(&mut self, grad: Array<f32, IxDyn>) {
-        let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
-        self.container.deref().borrow_mut().grad = Some(new_grad);
-
-        self.container.deref().borrow_mut().num_consumers -= 1;
+    pub fn backward_internal(&self, grad: Array<f32, IxDyn>) {
+        self.add_grad(grad);
         if self.container.borrow().num_consumers > 0 {
             return;
         }
         match self.prev_op.clone() {
-            Some(Operation::Add(mut node)) => node.backward(self),
-            Some(Operation::Mul(mut node)) => node.backward(self),
+            Some(Operation::Add(node)) => node.backward(self),
+            Some(Operation::Mul(node)) => node.backward(self),
             None => {
                 println!("No previous operation");
             }
@@ -149,7 +139,7 @@ impl Tensor {
         };
     }
 
-    pub fn build_graph(&mut self) {
+    pub fn build_graph(&self) {
         self.container.deref().borrow_mut().num_consumers += 1;
         if self.container.borrow().num_consumers > 1 {
             return;
@@ -168,6 +158,15 @@ impl Tensor {
                 }
             };
         }
+    }
+
+    fn add_grad(&self, grad: Array<f32, IxDyn>) {
+        let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
+        self.container.deref().borrow_mut().grad = Some(new_grad);
+        self.container.deref().borrow_mut().num_consumers -= 1;
+    }
+    fn consumers(&self) -> usize {
+        (*self.container).borrow().num_consumers
     }
 
     pub fn shape(&self) -> IxDyn {
@@ -237,13 +236,10 @@ impl TensorMul {
             })
             .collect()
     }
-    pub fn backward(&mut self, output: &mut Tensor) {
-        let grad = output.container.borrow().grad.clone();
-        let grad = grad.unwrap_or(Array::ones(output.shape()));
-        let grad_a = grad.clone() * self.second.container.borrow().array.clone();
-        let grad_b = grad.clone() * self.first.container.borrow().array.clone();
-        self.first.backward_internal(grad_a);
-        self.second.backward_internal(grad_b);
+    pub fn backward(&self, output: &Tensor) {
+        for (grad, tensor) in self.grad(output) {
+            tensor.backward_internal(grad);
+        }
     }
 }
 
@@ -270,13 +266,10 @@ impl TensorAdd {
             .map(|tensor| (grad.clone(), (**tensor).clone()))
             .collect()
     }
-    fn backward(&mut self, output: &mut Tensor) {
-        let maybe_grad = output.container.borrow().grad.clone();
-        let grad = maybe_grad.unwrap_or(ndarray::Array::zeros(output.shape()));
-        let grad_a = grad.clone();
-        let grad_b = grad.clone();
-        self.first.backward_internal(grad_a);
-        self.second.backward_internal(grad_b);
+    fn backward(&self, output: &Tensor) {
+        for (grad, tensor) in self.grad(output) {
+            tensor.backward_internal(grad);
+        }
     }
 }
 
