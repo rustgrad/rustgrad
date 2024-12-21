@@ -21,20 +21,32 @@ pub struct Tensor {
     pub container: Rc<RefCell<DataContainer>>,
     prev_op: Option<Operation>,
 }
-impl Hash for Tensor {
+pub struct HashTensor(Tensor);
+// Separated so it is not possible to say tensor_a == tensor_b with the wrong implementation
+impl From<Tensor> for HashTensor {
+    fn from(value: Tensor) -> Self {
+        HashTensor(value)
+    }
+}
+impl From<HashTensor> for Tensor {
+    fn from(value: HashTensor) -> Self {
+        value.0
+    }
+}
+impl Hash for HashTensor {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let container_adress = (*self.container).as_ptr() as usize;
+        let container_adress = (*self.0.container).as_ptr() as usize;
         container_adress.hash(state);
     }
 }
-impl PartialEq for Tensor {
+impl PartialEq for HashTensor {
     fn eq(&self, other: &Self) -> bool {
-        let data_address = (*self.container).as_ptr() as usize;
-        let other_data_address = (*other.container).as_ptr() as usize;
+        let data_address = (*self.0.container).as_ptr() as usize;
+        let other_data_address = (*other.0.container).as_ptr() as usize;
         data_address == other_data_address
     }
 }
-impl Eq for Tensor {}
+impl Eq for HashTensor {}
 
 impl Tensor {
     pub fn new(data: Array<f32, IxDyn>) -> Tensor {
@@ -84,22 +96,22 @@ impl Tensor {
 
     pub fn queue_backward_internal(&self, grad: Array<f32, IxDyn>) {
         self.add_grad(grad);
-        let mut queue: PriorityQueue<Tensor, Reverse<usize>> = PriorityQueue::new();
-        queue.push(self.clone(), Reverse(self.consumers()));
+        let mut queue: PriorityQueue<HashTensor, Reverse<usize>> = PriorityQueue::new();
+        queue.push(self.clone().into(), Reverse(self.consumers()));
         while !queue.is_empty() {
             let (tensor, priority) = queue.pop().expect("Queue should not be empty");
             if priority.0 > 0 {
                 panic!("Did not find ready tensor");
             }
-            let operation = tensor.prev_op.clone();
+            let operation = tensor.0.prev_op.clone();
             if operation.is_none() {
                 continue;
             }
-            let grads = operation.unwrap().grad(&tensor);
+            let grads = operation.unwrap().grad(&tensor.0);
             for (grad, tensor) in grads {
                 tensor.add_grad(grad);
                 let priority = tensor.consumers();
-                queue.push(tensor, Reverse(priority));
+                queue.push(tensor.into(), Reverse(priority));
             }
         }
     }
