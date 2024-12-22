@@ -1,5 +1,9 @@
 pub mod engine;
+pub mod matmul;
 pub mod mlp;
+pub mod parallel;
+pub mod shape;
+pub mod sharing;
 pub mod tensor;
 
 pub fn add(left: usize, right: usize) -> usize {

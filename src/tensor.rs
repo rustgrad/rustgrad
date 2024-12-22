@@ -5,6 +5,7 @@ use std::{
     rc::Rc,
 };
 
+use crate::{matmul::TensorMatMul, shape::Shape};
 
 #[derive(Default, Debug, Clone)]
 pub struct DataContainer {
@@ -32,7 +33,7 @@ impl Tensor {
             prev_op: None,
         }
     }
-    fn new_with_prev(data: Array<f32, IxDyn>, prev_op: Operation) -> Tensor {
+    pub fn new_with_prev(data: Array<f32, IxDyn>, prev_op: Operation) -> Tensor {
         let data = DataContainer {
             array: data,
             grad: None,
@@ -43,6 +44,23 @@ impl Tensor {
             prev_op: Some(prev_op),
         }
     }
+
+    pub fn new_with_grad(
+        data: Array<f32, IxDyn>,
+        prev_op: Operation,
+        grad: Array<f32, IxDyn>,
+    ) -> Tensor {
+        let data = DataContainer {
+            array: data,
+            grad: Some(grad),
+            num_consumers: 0,
+        };
+        Tensor {
+            container: Rc::new(RefCell::new(data)),
+            prev_op: Some(prev_op),
+        }
+    }
+
     pub fn backward(&mut self) {
         // This is a leaf node, we need to build the graph
         self.build_graph();
@@ -62,6 +80,9 @@ impl Tensor {
         match self.prev_op.clone() {
             Some(Operation::Add(mut node)) => node.backward(self),
             Some(Operation::Mul(mut node)) => node.backward(self),
+            Some(Operation::MatMul(mut node)) => {
+                node.backward(self);
+            }
             None => {
                 println!("No previous operation");
             }
@@ -75,6 +96,10 @@ impl Tensor {
                 node.second.zero_graph();
             }
             Some(Operation::Mul(mut node)) => {
+                node.first.zero_graph();
+                node.second.zero_graph();
+            }
+            Some(Operation::MatMul(mut node)) => {
                 node.first.zero_graph();
                 node.second.zero_graph();
             }
@@ -98,6 +123,10 @@ impl Tensor {
                     node.first.build_graph();
                     node.second.build_graph();
                 }
+                Some(Operation::MatMul(mut node)) => {
+                    node.first.build_graph();
+                    node.second.build_graph();
+                }
                 None => {
                     println!("No previous operation");
                 }
@@ -105,14 +134,20 @@ impl Tensor {
         }
     }
 
-    pub fn shape(&self) -> IxDyn {
-        self.container.borrow().array.raw_dim()
+    pub fn shape(&self) -> Shape {
+        let binding = self.container.borrow();
+        let shape = binding.array.shape();
+        Shape::from(shape.to_vec())
     }
     pub fn grad(&self) -> Option<Array<f32, IxDyn>> {
         self.container.borrow().grad.clone()
     }
     pub fn data(&self) -> Array<f32, IxDyn> {
         self.container.borrow().array.clone()
+    }
+
+    pub fn dot(self, rhs: Tensor) -> Tensor {
+        TensorMatMul::forward(self, rhs)
     }
 }
 impl Clone for Tensor {
@@ -125,10 +160,10 @@ impl Clone for Tensor {
 }
 
 #[derive(Debug, Clone)]
-enum Operation {
+pub(crate) enum Operation {
     Add(TensorAdd),
     Mul(TensorMul),
-    // MatMul(TensorMatMul<A, D, E>),
+    MatMul(TensorMatMul),
 }
 
 #[derive(Debug, Clone)]

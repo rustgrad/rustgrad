@@ -1,13 +1,13 @@
-use std::ops::Mul;
+// use std::ops::Mul;
 
-use crate::tensor::Tensor;
-use ndarray::array;
-use ndarray::Array;
-use ndarray::Ix1;
-use ndarray::Ix2;
-use ndarray::IxDyn;
-use ndarray_rand::rand_distr::StandardNormal;
-use ndarray_rand::RandomExt;
+// use crate::tensor::Tensor;
+// use ndarray::array;
+// use ndarray::Array;
+// use ndarray::Ix1;
+// use ndarray::Ix2;
+// use ndarray::IxDyn;
+// use ndarray_rand::rand_distr::StandardNormal;
+// use ndarray_rand::RandomExt;
 
 // #[derive(Debug)]
 // pub struct MLP {
