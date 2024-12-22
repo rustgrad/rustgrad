@@ -1,264 +1,223 @@
-use ndarray::{linalg::Dot, Array, ArrayBase, Dimension, OwnedRepr};
-use num_traits::identities::Zero;
+use ndarray::{Array, IxDyn};
 use std::{
-    borrow::Borrow,
-    cell::{Ref, RefCell},
-    collections::HashMap,
+    cell::RefCell,
     ops::{Add, Deref, Mul},
-    process::Output,
     rc::Rc,
 };
+
 #[derive(Default, Debug, Clone)]
-pub struct Tensor<A, D: Dimension> {
-    pub data: Array<A, D>,
-    pub grad: Option<Array<A, D>>,
-    pub prev: Option<Operation<A, D>>,
+pub struct DataContainer {
+    pub array: Array<f32, IxDyn>,
+    pub grad: Option<Array<f32, IxDyn>>,
+
+    pub num_consumers: usize,
 }
-impl<A, D: Dimension> Tensor<A, D>
-where
-    A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
-    A: Mul<Output = A> + Clone, // A must support element-wise multiplication and cloning
-    A: num_traits::identities::Zero,
-    A: num_traits::identities::One,
-{
-    pub fn backward(self) -> (Tensor<A, D>, Tensor<A, D>) {
-        match self.prev.clone() {
-            Some(Operation::Add(node)) => node.backward(self),
-            Some(Operation::Mul(node)) => node.backward(self),
-            Some(Operation::MatMul(node)) => node.backward(self),
+
+#[derive(Default, Debug)]
+pub struct Tensor {
+    pub container: Rc<RefCell<DataContainer>>,
+    prev_op: Option<Operation>,
+}
+
+impl Tensor {
+    pub fn new(data: Array<f32, IxDyn>) -> Tensor {
+        let data = DataContainer {
+            array: data,
+            grad: None,
+            num_consumers: 0,
+        };
+        Tensor {
+            container: Rc::new(RefCell::new(data)),
+            prev_op: None,
+        }
+    }
+    fn new_with_prev(data: Array<f32, IxDyn>, prev_op: Operation) -> Tensor {
+        let data = DataContainer {
+            array: data,
+            grad: None,
+            num_consumers: 0,
+        };
+        Tensor {
+            container: Rc::new(RefCell::new(data)),
+            prev_op: Some(prev_op),
+        }
+    }
+    pub fn backward(&mut self) {
+        // This is a leaf node, we need to build the graph
+        self.build_graph();
+
+        let start_grad = Array::ones(self.shape());
+        self.backward_internal(start_grad);
+    }
+
+    pub fn backward_internal(&mut self, grad: Array<f32, IxDyn>) {
+        let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
+        self.container.deref().borrow_mut().grad = Some(new_grad);
+
+        self.container.deref().borrow_mut().num_consumers -= 1;
+        if self.container.borrow().num_consumers > 0 {
+            return;
+        }
+        match self.prev_op.clone() {
+            Some(Operation::Add(mut node)) => node.backward(self),
+            Some(Operation::Mul(mut node)) => node.backward(self),
             None => {
-                panic!("No operation to backpropagate")
+                println!("No previous operation");
             }
+        };
+    }
+    pub fn zero_graph(&mut self) {
+        self.container.deref().borrow_mut().num_consumers = 0;
+        match self.prev_op.clone() {
+            Some(Operation::Add(mut node)) => {
+                node.first.zero_graph();
+                node.second.zero_graph();
+            }
+            Some(Operation::Mul(mut node)) => {
+                node.first.zero_graph();
+                node.second.zero_graph();
+            }
+            None => {
+                println!("No previous operation");
+            }
+        };
+    }
+
+    pub fn build_graph(&mut self) {
+        self.container.deref().borrow_mut().num_consumers += 1;
+        if self.container.borrow().num_consumers > 1 {
+            return;
+        } else {
+            match self.prev_op.clone() {
+                Some(Operation::Add(mut node)) => {
+                    node.first.build_graph();
+                    node.second.build_graph();
+                }
+                Some(Operation::Mul(mut node)) => {
+                    node.first.build_graph();
+                    node.second.build_graph();
+                }
+                None => {
+                    println!("No previous operation");
+                }
+            };
+        }
+    }
+
+    pub fn shape(&self) -> IxDyn {
+        self.container.borrow().array.raw_dim()
+    }
+    pub fn grad(&self) -> Option<Array<f32, IxDyn>> {
+        self.container.borrow().grad.clone()
+    }
+    pub fn data(&self) -> Array<f32, IxDyn> {
+        self.container.borrow().array.clone()
+    }
+}
+impl Clone for Tensor {
+    fn clone(&self) -> Self {
+        Tensor {
+            container: self.container.clone(),
+            prev_op: self.prev_op.clone(),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Operation<A, D: Dimension> {
-    Add(TensorAdd<A, D>),
-    Mul(TensorMul<A, D>),
-    MatMul(TensorMatMul<A, D>),
-}
-
-pub struct RefTensor<A, D: Dimension> {
-    pub ref_tensor: Rc<RefCell<Tensor<A, D>>>,
-}
-
-// impl<A, D: Dimension> Deref for RefTensor<A, D> {
-//     type Target = Ref< Tensor<A, D>>;
-//     fn deref(&self) -> Self::Target {
-//         self.ref_tensor.borrow()
-//     }
-// }
-// enum ComputationOperation<A, D> {
-//     BinaryOp(Box<dyn BinaryOperation<A, D>>), // Node that performs a binary operation
-//     UnaryOp(Box<dyn UnaryOperation<A, D>>),   // Node that performs a unary operation
-//     TertiaryOp(Box<dyn TertiaryOperation<A, D>>),
-// }
-
-trait TertiaryOperation<A, D: Dimension> {
-    fn forward(
-        &self,
-        input_a: Tensor<A, D>,
-        input_b: Tensor<A, D>,
-        input_c: Tensor<A, D>,
-    ) -> Tensor<A, D>;
-    fn backward(&self, input: Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>, Tensor<A, D>);
-}
-
-trait UnaryOperation<A, D: Dimension> {
-    fn forward(&self, input: Tensor<A, D>) -> Tensor<A, D>;
-    fn backward(&self, input: Tensor<A, D>) -> Tensor<A, D>;
-}
-
-trait BinaryOperation<A, D: Dimension> {
-    fn forward(input_a: Tensor<A, D>, input_b: Tensor<A, D>) -> Tensor<A, D>;
-    fn backward(&self, input: Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>);
+enum Operation {
+    Add(TensorAdd),
+    Mul(TensorMul),
+    // MatMul(TensorMatMul<A, D, E>),
 }
 
 #[derive(Debug, Clone)]
-struct TensorMatMul<A, D: Dimension> {
-    first: Rc<RefCell<Tensor<A, D>>>,
-    second: Rc<RefCell<Tensor<A, D>>>,
+struct TensorMul {
+    first: Box<Tensor>,
+    second: Box<Tensor>,
 }
 
-impl<A, D> TensorMatMul<A, D>
-where
-    A: Mul<Output = A> + Clone + num_traits::One, // A must support element-wise multiplication and cloning
-    D: Dimension,
-    ArrayBase<OwnedRepr<A>, D>: Mul<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise multiplication is possible
-{
-    pub fn forward(input_a: Tensor<A, D>, input_b: Tensor<A, D>) -> Tensor<A, D> {
-        let data = input_a.data.clone().dot(input_b.data.clone());
+impl TensorMul {
+    pub fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
+        let result =
+            input_a.container.borrow().array.clone() * input_b.container.borrow().array.clone();
         let node = TensorMul {
-            first: Rc::new(RefCell::new(input_a)),
-            second: Rc::new(RefCell::new(input_b)),
+            first: Box::new(input_a),
+            second: Box::new(input_b),
         };
-        let result = Tensor {
-            data: data,
-            grad: None,
-            prev: Some(Operation::Mul(node)),
-        };
-        result
+        Tensor::new_with_prev(result, Operation::Mul(node))
     }
-    pub fn backward(self, output: Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>) {
-        let grad = output.grad.unwrap_or(Array::ones(output.data.raw_dim()));
-        let grad_a = grad.clone() * (*self.second).borrow().data.clone();
-        let grad_b = grad.clone() * (*self.first).borrow().data.clone();
-        (
-            Tensor {
-                data: (*self.first).borrow().data.clone(),
-                grad: Some(grad_a),
-                prev: Some(Operation::Mul(self.clone())),
-            },
-            Tensor {
-                data: (*self.second).borrow().data.clone(),
-                grad: Some(grad_b),
-                prev: Some(Operation::Mul(self.clone())),
-            },
-        )
+    pub fn backward(&mut self, output: &mut Tensor) {
+        let grad = output.container.borrow().grad.clone();
+        let grad = grad.unwrap_or(Array::ones(output.shape()));
+        let grad_a = grad.clone() * self.second.container.borrow().array.clone();
+        let grad_b = grad.clone() * self.first.container.borrow().array.clone();
+        self.first.backward_internal(grad_a);
+        self.second.backward_internal(grad_b);
     }
 }
 
 #[derive(Debug, Clone)]
-struct TensorMul<A, D: Dimension> {
-    first: Rc<RefCell<Tensor<A, D>>>,
-    second: Rc<RefCell<Tensor<A, D>>>,
+struct TensorAdd {
+    first: Box<Tensor>,
+    second: Box<Tensor>,
 }
-
-impl<A, D> TensorMul<A, D>
-where
-    A: Mul<Output = A> + Clone + num_traits::One, // A must support element-wise multiplication and cloning
-    D: Dimension,
-    ArrayBase<OwnedRepr<A>, D>: Mul<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise multiplication is possible
-{
-    pub fn forward(input_a: Tensor<A, D>, input_b: Tensor<A, D>) -> Tensor<A, D> {
-        let data = input_a.data.clone() * input_b.data.clone();
-        let node = TensorMul {
-            first: Rc::new(RefCell::new(input_a)),
-            second: Rc::new(RefCell::new(input_b)),
-        };
-        let result = Tensor {
-            data: data,
-            grad: None,
-            prev: Some(Operation::Mul(node)),
-        };
-        result
-    }
-    pub fn backward(self, output: Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>) {
-        let grad = output.grad.unwrap_or(Array::ones(output.data.raw_dim()));
-        let grad_a = grad.clone() * (*self.second).borrow().data.clone();
-        let grad_b = grad.clone() * (*self.first).borrow().data.clone();
-        (
-            Tensor {
-                data: (*self.first).borrow().data.clone(),
-                grad: Some(grad_a),
-                prev: Some(Operation::Mul(self.clone())),
-            },
-            Tensor {
-                data: (*self.second).borrow().data.clone(),
-                grad: Some(grad_b),
-                prev: Some(Operation::Mul(self.clone())),
-            },
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-struct TensorAdd<A, D: Dimension> {
-    first: Rc<RefCell<Tensor<A, D>>>,
-    second: Rc<RefCell<Tensor<A, D>>>,
-}
-impl<A, D> TensorAdd<A, D>
-where
-    A: Add<Output = A> + Clone, // A must support element-wise addition and cloning
-    D: Dimension,
-    ArrayBase<OwnedRepr<A>, D>: Add<Output = ArrayBase<OwnedRepr<A>, D>>, // Ensure element-wise addition is possible
-    A: num_traits::identities::Zero,
-{
-    fn forward(input_a: Tensor<A, D>, input_b: Tensor<A, D>) -> Tensor<A, D> {
-        let data = input_a.data.clone() + input_b.data.clone();
+impl TensorAdd {
+    fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
+        let result =
+            input_a.container.borrow().array.clone() + input_b.container.borrow().array.clone();
         let node = TensorAdd {
-            first: Rc::new(RefCell::new(input_a)),
-            second: Rc::new(RefCell::new(input_b)),
+            first: Box::new(input_a),
+            second: Box::new(input_b),
         };
-        let result = Tensor {
-            data: data,
-            grad: None,
-            prev: Some(Operation::Add(node)),
-        };
-        result
+        Tensor::new_with_prev(result, Operation::Add(node))
     }
-    fn backward(self, output: Tensor<A, D>) -> (Tensor<A, D>, Tensor<A, D>) {
-        // unimplemented!();
-        let grad = output
-            .grad
-            .unwrap_or(ndarray::Array::zeros(output.data.raw_dim()));
+    fn backward(&mut self, output: &mut Tensor) {
+        let maybe_grad = output.container.borrow().grad.clone();
+        let grad = maybe_grad.unwrap_or(ndarray::Array::zeros(output.shape()));
         let grad_a = grad.clone();
         let grad_b = grad.clone();
-        (
-            Tensor {
-                data: (*self.first).borrow().data.clone(),
-                grad: Some(grad_a),
-                prev: Some(Operation::Add(self.clone())),
-            },
-            Tensor {
-                data: (*self.second).borrow().data.clone(),
-                grad: Some(grad_b),
-                prev: Some(Operation::Add(self.clone())),
-            },
-        )
+        self.first.backward_internal(grad_a);
+        self.second.backward_internal(grad_b);
     }
 }
 
-impl<D: Dimension, A: Add<Output = A> + Clone> Add for Tensor<A, D>
-where
-    A: num_traits::identities::Zero,
-{
-    type Output = Tensor<A, D>;
-    fn add(self, other: Tensor<A, D>) -> Tensor<A, D> {
+impl Add<Tensor> for Tensor {
+    type Output = Tensor;
+    fn add(self, other: Tensor) -> Tensor {
         TensorAdd::forward(self, other)
     }
 }
-impl<D: Dimension, A: Mul<Output = A> + Clone> Mul for Tensor<A, D>
-where
-    A: num_traits::One,
-{
-    type Output = Tensor<A, D>;
-    fn mul(self, other: Tensor<A, D>) -> Tensor<A, D> {
+impl Mul for Tensor {
+    type Output = Tensor;
+    fn mul(self, other: Tensor) -> Tensor {
         TensorMul::forward(self, other)
     }
 }
-pub fn add<A, D>(left: Array<A, D>, right: Array<A, D>) -> Array<A, D>
-where
-    A: Add<Output = A> + Clone,
-    D: Dimension,
-{
-    left + right
-}
-
 #[cfg(test)]
 mod tests {
+    use ndarray::array;
+
     use super::*;
 
     #[test]
     fn it_works() {
-        let test_tensor = Tensor {
-            data: Array::from_vec(vec![1, 2, 3, 4]),
-            grad: None,
-            prev: None,
-        };
-        let test_tensor2 = Tensor {
-            data: Array::from_vec(vec![1, 2, 3, 4]),
-            grad: None,
-            prev: None,
-        };
-        let test3 = test_tensor + test_tensor2;
-        let test3 = test3.clone() * test3;
-        println!("forward: {:?}", test3);
-        let test3 = test3.backward();
-        println!("backward: {:?}", test3);
-        // println!("{:?}", test_tensor2);
-        panic!();
+        let test_0 = Tensor::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = test_0.clone() + test_0.clone(); // grad_2 = 2 * test_1
+        let mut test_2: Tensor = test_1.clone() * test_1.clone();
+        println!("forward: {:?}", test_2);
+        println!("_____________________________");
+        test_2.backward();
+
+        assert_eq!(
+            test_0.grad(),
+            Some(array![[8.0, 16.0, 24.0, 32.0]].into_dyn())
+        );
+        assert_eq!(
+            test_1.grad(),
+            Some(array![[4.0, 8.0, 12.0, 16.0]].into_dyn())
+        );
+        assert_eq!(test_2.grad(), Some(array![[1.0, 1.0, 1.0, 1.0]].into_dyn()));
+
+        println!("{:?}", test_2);
     }
 }
