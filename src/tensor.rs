@@ -71,22 +71,15 @@ impl Tensor {
             prev_op: Some(prev_op),
         }
     }
+
     pub fn backward(&mut self) {
-        // This is a leaf node, we need to build the graph
         self.build_graph();
 
         let start_grad = Array::ones(self.shape());
         self.backward_internal(start_grad);
     }
 
-    pub fn queue_backward(&mut self) {
-        self.build_graph();
-
-        let start_grad = Array::ones(self.shape());
-        self.queue_backward_internal(start_grad);
-    }
-
-    pub fn queue_backward_internal(&self, grad: Array<f32, IxDyn>) {
+    pub fn backward_internal(&self, grad: Array<f32, IxDyn>) {
         self.add_grad(grad);
         let mut queue: PriorityQueue<HashTensor, Reverse<usize>> = PriorityQueue::new();
         queue.push(self.clone().into(), Reverse(self.consumers()));
@@ -109,19 +102,6 @@ impl Tensor {
         }
     }
 
-    pub fn backward_internal(&self, grad: Array<f32, IxDyn>) {
-        self.add_grad(grad);
-        if self.container.borrow().num_consumers > 0 {
-            return;
-        }
-        match self.prev_op.clone() {
-            Some(Operation::Add(node)) => node.backward(self),
-            Some(Operation::Mul(node)) => node.backward(self),
-            None => {
-                println!("No previous operation");
-            }
-        };
-    }
     pub fn zero_graph(&mut self) {
         self.container.deref().borrow_mut().num_consumers = 0;
         match self.prev_op.clone() {
@@ -236,11 +216,6 @@ impl TensorMul {
             })
             .collect()
     }
-    pub fn backward(&self, output: &Tensor) {
-        for (grad, tensor) in self.grad(output) {
-            tensor.backward_internal(grad);
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -266,11 +241,6 @@ impl TensorAdd {
             .map(|tensor| (grad.clone(), (**tensor).clone()))
             .collect()
     }
-    fn backward(&self, output: &Tensor) {
-        for (grad, tensor) in self.grad(output) {
-            tensor.backward_internal(grad);
-        }
-    }
 }
 
 impl Add<Tensor> for Tensor {
@@ -290,28 +260,6 @@ mod tests {
     use ndarray::array;
 
     use super::*;
-
-    #[test]
-    fn it_works_2() {
-        let test_0 = Tensor::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
-        let test_1 = test_0.clone() + test_0.clone(); // grad_2 = 2 * test_1
-        let mut test_2: Tensor = test_1.clone() * test_1.clone();
-        println!("forward: {:?}", test_2);
-        println!("_____________________________");
-        test_2.queue_backward();
-
-        assert_eq!(
-            test_0.grad(),
-            Some(array![[8.0, 16.0, 24.0, 32.0]].into_dyn())
-        );
-        assert_eq!(
-            test_1.grad(),
-            Some(array![[4.0, 8.0, 12.0, 16.0]].into_dyn())
-        );
-        assert_eq!(test_2.grad(), Some(array![[1.0, 1.0, 1.0, 1.0]].into_dyn()));
-
-        println!("{:?}", test_2);
-    }
 
     #[test]
     fn it_works() {
