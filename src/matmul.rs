@@ -195,7 +195,7 @@ fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) 
     o_strides.reverse();
 
     (
-        Shape::from(osh),
+        osh.into(),
         Strides::new(l_strides),
         Strides::new(r_strides),
         Strides::new(o_strides),
@@ -244,7 +244,7 @@ mod tests {
     fn it_works() {
         let test_0 = Tensor::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
         let test_1 = Tensor::new(array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad_2 = 2 * test_1
-        let mut test_2: Tensor = test_0.clone().dot(reshape(test_1, Shape::from([4, 2])));
+        let mut test_2: Tensor = test_0.clone().dot(reshape(test_1, [4, 2].into()));
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();

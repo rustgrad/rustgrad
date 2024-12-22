@@ -137,7 +137,7 @@ impl Tensor {
     pub fn shape(&self) -> Shape {
         let binding = self.container.borrow();
         let shape = binding.array.shape();
-        Shape::from(shape.to_vec())
+        shape.to_vec().into()
     }
     pub fn grad(&self) -> Option<Array<f32, IxDyn>> {
         self.container.borrow().grad.clone()
