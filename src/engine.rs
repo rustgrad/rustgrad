@@ -1,78 +1,73 @@
-use std::ops::Mul;
-
 use crate::tensor::Tensor;
-use ndarray::array;
 use ndarray::Array;
-use ndarray::Ix1;
-use ndarray::Ix2;
 use ndarray::IxDyn;
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;
 
-// #[derive(Debug)]
-// pub struct MLP {
-//     layers: Vec<LinearLayer>,
-// }
-// #[derive(Debug)]
-// pub struct LinearLayer {
-//     weight: Tensor<Ix2>,
-//     bias: Tensor<Ix1>,
-// }
-// impl LinearLayer {
-//     pub fn forward(self, x: Tensor<Ix1>) -> Tensor<Ix1> {
-//         self.weight.mat_mul(x) + self.bias
-//     }
-// }
-// impl MLP {
-//     pub fn forward(self, x: Tensor) -> Tensor {
+#[derive(Debug)]
+pub struct MLP {
+    layers: Vec<LinearLayer>,
+}
 
-//     }
-// }
+#[derive(Debug)]
+pub struct LinearLayer {
+    weight: Tensor,
+    bias: Tensor,
+}
+impl LinearLayer {
+    pub fn new(input_dim: usize, output_dim: usize) -> LinearLayer {
+        let bias: Array<f32, IxDyn> = Array::random(input_dim, StandardNormal).into_dyn();
+        let bias = Tensor::new(bias);
+        let weight: Array<f32, IxDyn> =
+            Array::random((input_dim, output_dim), StandardNormal).into_dyn();
+        let weight = Tensor::new(weight);
+        LinearLayer { bias, weight }
+    }
+    pub fn forward(&self, x: Tensor) -> Tensor {
+        //TODO add non linearity
+        self.weight.clone() + x + self.bias.clone()
+    }
+    pub fn parameters(&self) -> Vec<Tensor> {
+        vec![self.weight.clone(), self.bias.clone()]
+    }
+}
 
-// pub fn build_mlp(input_size: usize, hidden_size: usize, output_size: usize, layers: usize) -> MLP {
-//     let mut layers = Vec::with_capacity(layers);
-//     for layer in 0..layers.len() {
-//         let (layer_input_size, layer_output_size) = match layer {
-//             0 => (input_size, hidden_size),
-//             l if l == layers.len() - 1 => (hidden_size.clone(), output_size.clone()),
-//             _ => (hidden_size.clone(), hidden_size.clone()),
-//         };
-//         layers.push(build_layer(layer_input_size, layer_output_size));
-//     }
-//     MLP { layers }
-// }
-// pub fn build_layer(input_size: usize, output_size: usize) -> LinearLayer {
-//     let data = Array::random(IxDyn(&[input_size, output_size]), StandardNormal);
-//     let weight = Tensor {
-//         data,
-//         grad: None,
-//         prev: None,
-//     };
-//     let bias = Tensor {
-//         data: Array::random(IxDyn(&[output_size]), StandardNormal),
-//         grad: None,
-//         prev: None,
-//     };
-//     LinearLayer { weight, bias }
-// }
+impl MLP {
+    pub fn new(depth: usize, input_dim: usize, hidden_dim: usize, output_dim: usize) -> MLP {
+        let mut layers = vec![LinearLayer::new(input_dim, hidden_dim)];
+        for _ in 0..depth - 2 {
+            layers.push(LinearLayer::new(hidden_dim, hidden_dim));
+        }
+        layers.push(LinearLayer::new(hidden_dim, output_dim));
+        MLP { layers }
+    }
+    pub fn forward(&self, mut x: Tensor) -> Tensor {
+        for layer in self.layers.iter() {
+            x = layer.forward(x);
+        }
+        x
+    }
+    pub fn parameters(&self) -> Vec<Tensor> {
+        let mut params = vec![];
+        for layer in self.layers.iter() {
+            params.extend(layer.parameters())
+        }
+        params
+    }
+}
 
-// #[cfg(test)]
-// mod tests {
-//     use std::array;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::array;
 
-//     use super::*;
-
-//     #[test]
-//     fn test_build_mlp() {
-//         let layer = build_layer(2, 3);
-//         println!("{:?}", layer);
-//         let x = Tensor {
-//             data: array![1., 2.].into_dyn(),
-//             grad: None,
-//             prev: None,
-//         };
-//         let forwarded = layer.forward(x);
-//         println!("{:?}", forwarded);
-//         panic!();
-//     }
-// }
+    #[test]
+    fn test_build_mlp() {
+        let mlp = MLP::new(3, 10, 10, 10);
+        println!("{:?}", mlp);
+        let x = Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
+        let forwarded = mlp.forward(x);
+        println!("{:?}", forwarded);
+        panic!();
+    }
+}
