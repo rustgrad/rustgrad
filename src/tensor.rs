@@ -28,7 +28,11 @@ pub struct Tensor {
 }
 impl Debug for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let repr = format!("array: {}", self.container.borrow().array);
+        let repr = format!(
+            "\n array: {}, grad {:?} \n",
+            self.container.borrow().array,
+            self.container.borrow().grad
+        );
         f.write_str(&repr)
     }
 }
@@ -45,7 +49,7 @@ impl Tensor {
             prev_op: None,
         }
     }
-    fn new_with_prev(data: Array<f32, IxDyn>, prev_op: Operation) -> Tensor {
+    pub fn new_with_prev(data: Array<f32, IxDyn>, prev_op: Operation) -> Tensor {
         let data = DataContainer {
             array: data,
             grad: None,
@@ -75,6 +79,7 @@ impl Tensor {
         match self.prev_op.clone() {
             Some(Operation::Add(mut node)) => node.backward(self),
             Some(Operation::Mul(mut node)) => node.backward(self),
+            Some(Operation::MatMul(mut node)) => node.backward(self),
             None => {
                 println!("No previous operation");
             }
@@ -126,9 +131,6 @@ impl Tensor {
         }
     }
 
-    pub fn shape(&self) -> IxDyn {
-        self.container.borrow().array.raw_dim()
-    }
     pub fn grad(&self) -> Option<Array<f32, IxDyn>> {
         self.container.borrow().grad.clone()
     }
@@ -150,15 +152,12 @@ impl Tensor {
         let shape = binding.array.shape();
         shape.to_vec().into()
     }
-    pub fn grad(&self) -> Option<Array<f32, IxDyn>> {
-        self.container.borrow().grad.clone()
-    }
-    pub fn data(&self) -> Array<f32, IxDyn> {
-        self.container.borrow().array.clone()
-    }
 
     pub fn dot(self, rhs: Tensor) -> Tensor {
         TensorMatMul::forward(self, rhs)
+    }
+    pub fn reshape(&self, shape: Shape) -> Tensor {
+        Tensor::new(self.data().into_shape_with_order(shape.dims).unwrap())
     }
 }
 impl Clone for Tensor {

@@ -56,6 +56,8 @@ impl TensorMatMul {
         let grad_t = grad.reversed_axes();
         let grad_a = matmul(Tensor::new(input_b), Tensor::new(grad_t));
 
+        println!("grad_a {:?}", grad_a);
+        println!("grad_b {:?}", grad_b);
         self.first.backward_internal(grad_a.data());
         self.second.backward_internal(grad_b.data());
     }
@@ -65,6 +67,7 @@ pub(crate) fn matmul(lhs: Tensor, rhs: Tensor) -> Tensor {
     let shape_lhs = lhs.shape();
     let shape_rhs = rhs.shape();
     let ndims = shape_lhs.num_dims();
+    println!("{:?} , {:?}", shape_lhs, shape_rhs);
     let m = shape_lhs.dims[ndims - 2]; // # of left rows
     let k = shape_rhs.dims[ndims - 2]; // # of left cols and right rows
     let n = shape_rhs.dims[ndims - 1]; // # of right cols

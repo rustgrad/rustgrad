@@ -24,7 +24,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_build_mlp() {
+    fn test_optimizer() {
         let mlp = MLP::new(3, 10, 10, 10);
         let optimiser = SGDOptimizer::new(0.01, mlp.parameters());
         println!("{:?}", mlp);
@@ -32,8 +32,7 @@ mod tests {
         let mut forwarded = mlp.forward(x);
         println!("{:?}", forwarded);
         forwarded.backward();
-        optimiser.step();
         println!("{:?}", mlp);
-        panic!();
+        optimiser.step();
     }
 }
