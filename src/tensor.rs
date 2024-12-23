@@ -6,6 +6,8 @@ use std::{
     rc::Rc,
 };
 
+use crate::{matmul::TensorMatMul, shape::Shape};
+
 #[derive(Default, Debug, Clone)]
 pub struct DataContainer {
     pub array: Array<f32, IxDyn>,
@@ -89,6 +91,10 @@ impl Tensor {
                 node.first.zero_graph();
                 node.second.zero_graph();
             }
+            Some(Operation::MatMul(mut node)) => {
+                node.first.zero_graph();
+                node.second.zero_graph();
+            }
             None => {
                 println!("No previous operation");
             }
@@ -106,6 +112,10 @@ impl Tensor {
                     node.second.build_graph();
                 }
                 Some(Operation::Mul(mut node)) => {
+                    node.first.build_graph();
+                    node.second.build_graph();
+                }
+                Some(Operation::MatMul(mut node)) => {
                     node.first.build_graph();
                     node.second.build_graph();
                 }
@@ -134,6 +144,22 @@ impl Tensor {
     pub fn add_value(&self, value: Array<f32, IxDyn>) {
         self.container.borrow_mut().add_value(value);
     }
+
+    pub fn shape(&self) -> Shape {
+        let binding = self.container.borrow();
+        let shape = binding.array.shape();
+        shape.to_vec().into()
+    }
+    pub fn grad(&self) -> Option<Array<f32, IxDyn>> {
+        self.container.borrow().grad.clone()
+    }
+    pub fn data(&self) -> Array<f32, IxDyn> {
+        self.container.borrow().array.clone()
+    }
+
+    pub fn dot(self, rhs: Tensor) -> Tensor {
+        TensorMatMul::forward(self, rhs)
+    }
 }
 impl Clone for Tensor {
     fn clone(&self) -> Self {
@@ -145,10 +171,10 @@ impl Clone for Tensor {
 }
 
 #[derive(Debug, Clone)]
-enum Operation {
+pub(crate) enum Operation {
     Add(TensorAdd),
     Mul(TensorMul),
-    // MatMul(TensorMatMul<A, D, E>),
+    MatMul(TensorMatMul),
 }
 
 #[derive(Debug, Clone)]
