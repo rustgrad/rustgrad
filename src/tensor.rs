@@ -1,6 +1,7 @@
 use ndarray::{Array, IxDyn};
 use std::{
     cell::RefCell,
+    fmt::{Debug, Pointer, Write},
     ops::{Add, Deref, Mul},
     rc::Rc,
 };
@@ -12,11 +13,22 @@ pub struct DataContainer {
 
     pub num_consumers: usize,
 }
+impl DataContainer {
+    fn add_value(&mut self, value: Array<f32, IxDyn>) {
+        self.array = self.array.clone() + value;
+    }
+}
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct Tensor {
     pub container: Rc<RefCell<DataContainer>>,
     prev_op: Option<Operation>,
+}
+impl Debug for Tensor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let repr = format!("array: {}", self.container.borrow().array);
+        f.write_str(&repr)
+    }
 }
 
 impl Tensor {
@@ -110,8 +122,17 @@ impl Tensor {
     pub fn grad(&self) -> Option<Array<f32, IxDyn>> {
         self.container.borrow().grad.clone()
     }
+    pub fn zero_grad(&self) {
+        self.container.borrow_mut().grad = None;
+    }
     pub fn data(&self) -> Array<f32, IxDyn> {
         self.container.borrow().array.clone()
+    }
+    pub fn update_data(&self, data: Array<f32, IxDyn>) {
+        self.container.borrow_mut().array = data;
+    }
+    pub fn add_value(&self, value: Array<f32, IxDyn>) {
+        self.container.borrow_mut().add_value(value);
     }
 }
 impl Clone for Tensor {
