@@ -1,5 +1,4 @@
-pub mod engine;
-pub mod mlp;
+pub mod nn;
 pub mod optimiser;
 pub mod tensor;
 

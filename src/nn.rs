@@ -1,6 +1,8 @@
 use crate::tensor::Tensor;
 use ndarray::Array;
+use ndarray::ArrayBase;
 use ndarray::IxDyn;
+use ndarray_rand::rand::distributions::weighted;
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;
 
@@ -16,10 +18,11 @@ pub struct LinearLayer {
 }
 impl LinearLayer {
     pub fn new(input_dim: usize, output_dim: usize) -> LinearLayer {
-        let bias: Array<f32, IxDyn> = Array::random(input_dim, StandardNormal).into_dyn();
+        // let bias: Array<f32, IxDyn> = Array::random(input_dim, StandardNormal).into_dyn();
+        let bias = Array::zeros(input_dim).into_dyn();
         let bias = Tensor::new(bias);
-        let weight: Array<f32, IxDyn> =
-            Array::random((input_dim, output_dim), StandardNormal).into_dyn();
+        // let weight: Array<f32, IxDyn> = Array::random((input_dim, output_dim), StandardNormal).into_dyn();
+        let weight = Array::zeros((input_dim, output_dim)).into_dyn();
         let weight = Tensor::new(weight);
         LinearLayer { bias, weight }
     }

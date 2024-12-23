@@ -18,7 +18,7 @@ impl SGDOptimizer {
 
 #[cfg(test)]
 mod tests {
-    use crate::engine::MLP;
+    use crate::nn::MLP;
     use ndarray::array;
 
     use super::*;
