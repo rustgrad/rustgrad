@@ -29,9 +29,10 @@ pub struct Tensor {
 impl Debug for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let repr = format!(
-            "\n array: {}, grad {:?} \n",
+            "\n array: {}, grad {:?} \n num_consumer {:?} ",
             self.container.borrow().array,
-            self.container.borrow().grad
+            self.container.borrow().grad,
+            self.container.borrow().num_consumers
         );
         f.write_str(&repr)
     }
@@ -156,8 +157,10 @@ impl Tensor {
     pub fn dot(self, rhs: Tensor) -> Tensor {
         TensorMatMul::forward(self, rhs)
     }
-    pub fn reshape(&self, shape: Shape) -> Tensor {
-        Tensor::new(self.data().into_shape_with_order(shape.dims).unwrap())
+    pub fn reshape(&self, shape: Shape) {
+        //TODO this will break when we use it tensors that require grad.
+        let new_data = self.data().into_shape_with_order(shape.dims).unwrap();
+        self.container.borrow_mut().array = new_data;
     }
 }
 impl Clone for Tensor {

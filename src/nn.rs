@@ -36,9 +36,8 @@ impl LinearLayer {
     }
     pub fn forward(&self, x: Tensor) -> Tensor {
         //TODO add non linearity
-        x.reshape(Shape::new([1, self.input_dim]))
-            .dot(self.weight.clone())
-            + self.bias.clone()
+        x.reshape(Shape::new([1, self.input_dim]));
+        x.dot(self.weight.clone()) + self.bias.clone()
     }
     pub fn parameters(&self) -> Vec<Tensor> {
         vec![self.weight.clone(), self.bias.clone()]

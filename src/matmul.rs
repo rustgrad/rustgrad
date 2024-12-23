@@ -56,8 +56,6 @@ impl TensorMatMul {
         let grad_t = grad.reversed_axes();
         let grad_a = matmul(Tensor::new(input_b), Tensor::new(grad_t));
 
-        println!("grad_a {:?}", grad_a);
-        println!("grad_b {:?}", grad_b);
         self.first.backward_internal(grad_a.data());
         self.second.backward_internal(grad_b.data());
     }
@@ -147,7 +145,10 @@ fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) 
     let r_rows = rsh.dims[ndims - 2];
     let r_cols = rsh.dims[ndims - 1];
     if l_cols != r_rows {
-        panic!("Dimensions are incompatible for matrix multiplication.");
+        panic!(
+            "Dimensions {:?}, {:?} are incompatible for matrix multiplication.",
+            lsh, rsh
+        );
     }
     // Set matrix dimensions of the output shape.
     let mut osh = vec![0; ndims];
