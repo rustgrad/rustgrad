@@ -35,8 +35,7 @@ impl LinearLayer {
         }
     }
     pub fn forward(&self, x: Tensor) -> Tensor {
-        //TODO add non linearity
-        x.reshape(Shape::new([1, self.input_dim]));
+        let x = x.reshape(Shape::new([1, self.input_dim]));
         x.dot(self.weight.clone()) + self.bias.clone()
     }
     pub fn parameters(&self) -> Vec<Tensor> {
@@ -74,12 +73,28 @@ mod tests {
     use ndarray::array;
 
     #[test]
+    fn test_linear_layer() {
+        let layer_1 = LinearLayer::new(10, 5);
+        let layer_2 = LinearLayer::new(5, 1);
+        println!("{:?}", layer_1);
+        let x = Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
+        let mut x = layer_1.forward(x);
+        println!("{:?}", x);
+        let mut x = layer_2.forward(x);
+        println!("{:?}", x);
+        x.backward();
+        println!("layer_1 {:?}", layer_1);
+        println!("layer_2 {:?}", layer_1);
+    }
+
+    #[test]
     fn test_build_mlp() {
         let mlp = MLP::new(3, 10, 20, 1);
         println!("{:?}", mlp);
         let x = Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
         let forwarded = mlp.forward(x);
         println!("{:?}", forwarded);
+
         panic!();
     }
 }

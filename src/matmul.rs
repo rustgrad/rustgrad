@@ -226,7 +226,6 @@ fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) 
     )
 }
 fn reshape(tensor: Tensor, shape: Shape) -> Tensor {
-    println!("tensor: {:?}, shape {:?}", tensor, shape);
     Tensor::new(tensor.data().into_shape_with_order(shape.dims).unwrap())
 }
 
@@ -264,6 +263,15 @@ mod tests {
     use ndarray::array;
 
     use super::*;
+    #[test]
+    fn test_linear_layer_mm() {
+        let test_0 = Tensor::new(Array::ones((1, 5)).into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = Tensor::new(Array::ones((5, 5)).into_dyn()); // grad_2 = 2 * test_1
+        let mut test_2: Tensor = test_0.clone().dot(test_1);
+        println!("forward: {:?}", test_2);
+        println!("_____________________________");
+        test_2.backward();
+    }
 
     #[test]
     fn test_matmul() {

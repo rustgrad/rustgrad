@@ -81,6 +81,7 @@ impl Tensor {
             Some(Operation::Add(mut node)) => node.backward(self),
             Some(Operation::Mul(mut node)) => node.backward(self),
             Some(Operation::MatMul(mut node)) => node.backward(self),
+            Some(Operation::Reshape(mut node)) => node.backward(self),
             None => {
                 println!("No previous operation");
             }
@@ -100,6 +101,9 @@ impl Tensor {
             Some(Operation::MatMul(mut node)) => {
                 node.first.zero_graph();
                 node.second.zero_graph();
+            }
+            Some(Operation::Reshape(mut node)) => {
+                node.tensor.zero_grad();
             }
             None => {
                 println!("No previous operation");
@@ -124,6 +128,9 @@ impl Tensor {
                 Some(Operation::MatMul(mut node)) => {
                     node.first.build_graph();
                     node.second.build_graph();
+                }
+                Some(Operation::Reshape(mut node)) => {
+                    node.tensor.build_graph();
                 }
                 None => {
                     println!("No previous operation");
@@ -157,10 +164,8 @@ impl Tensor {
     pub fn dot(self, rhs: Tensor) -> Tensor {
         TensorMatMul::forward(self, rhs)
     }
-    pub fn reshape(&self, shape: Shape) {
-        //TODO this will break when we use it tensors that require grad.
-        let new_data = self.data().into_shape_with_order(shape.dims).unwrap();
-        self.container.borrow_mut().array = new_data;
+    pub fn reshape(self, shape: Shape) -> Tensor {
+        TensorReshape::forward(self, shape)
     }
 }
 impl Clone for Tensor {
@@ -177,6 +182,38 @@ pub(crate) enum Operation {
     Add(TensorAdd),
     Mul(TensorMul),
     MatMul(TensorMatMul),
+    Reshape(TensorReshape),
+}
+#[derive(Debug, Clone)]
+struct TensorReshape {
+    tensor: Box<Tensor>,
+    input_shape: Shape,
+}
+impl TensorReshape {
+    pub fn forward(input: Tensor, shape: Shape) -> Tensor {
+        let input_shape = input.shape();
+        println!("shape {:?}, input shape {:?}", shape, input_shape);
+
+        let new_data = input.data().into_shape_with_order(shape.dims).unwrap();
+        let node = TensorReshape {
+            input_shape: input.shape(),
+            tensor: Box::new(input),
+        };
+        Tensor::new_with_prev(new_data, Operation::Reshape(node))
+    }
+    pub fn backward(&mut self, output: &mut Tensor) {
+        println!(
+            "output_shape {:?}, input_shape {:?}",
+            output.grad().unwrap().shape(),
+            self.input_shape
+        );
+        let new_grad = output
+            .grad()
+            .expect("Missing gradient")
+            .into_shape_with_order(self.input_shape.dims.clone())
+            .unwrap();
+        self.tensor.backward_internal(new_grad);
+    }
 }
 
 #[derive(Debug, Clone)]
