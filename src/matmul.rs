@@ -40,7 +40,14 @@ impl TensorMatMul {
         // dL/dB_ij = dL/dC_km*dC_km/dB_ij
         // dL/dB_ij = dL/dC_kj*Aki
         // dL/dB  = A^T @ (dL/dC)
-        let grad_b = matmul(Tensor::new(input_a_t), Tensor::new(grad.clone()));
+        let input_a_t = Tensor::new(input_a_t);
+        let grad_tensor = Tensor::new(grad.clone());
+        println!(
+            "input_a_t {:?} grad {:?}",
+            input_a_t.shape(),
+            grad_tensor.shape()
+        );
+        let grad_b = matmul(input_a_t, grad_tensor);
 
         // A @ B = C
         // Ckm = Sum_n Akn * Bnm
@@ -54,7 +61,11 @@ impl TensorMatMul {
         // dL/dA = (dL/dC) @ B
         // dL/dA = B @ (dL/dC)^T
         let grad_t = grad.reversed_axes();
-        let grad_a = matmul(Tensor::new(input_b), Tensor::new(grad_t));
+        let grad_t = Tensor::new(grad_t);
+        let input_b = Tensor::new(input_b);
+        println!("input b shape {:?}", input_b.shape());
+        println!("grad_t shape {:?}", grad_t.shape());
+        let grad_a = matmul(input_b, grad_t);
 
         self.first.backward_internal(grad_a.data());
         self.second.backward_internal(grad_b.data());
@@ -65,12 +76,12 @@ pub(crate) fn matmul(lhs: Tensor, rhs: Tensor) -> Tensor {
     let shape_lhs = lhs.shape();
     let shape_rhs = rhs.shape();
     let ndims = shape_lhs.num_dims();
-    println!("{:?} , {:?}", shape_lhs, shape_rhs);
+    println!("lhs {:?}, rhs {:?}, ndims {}", shape_lhs, shape_rhs, ndims);
+
+    let (out_shape, strides_lhs, strides_rhs, strides_out) = output_shape(&shape_lhs, &shape_rhs);
     let m = shape_lhs.dims[ndims - 2]; // # of left rows
     let k = shape_rhs.dims[ndims - 2]; // # of left cols and right rows
     let n = shape_rhs.dims[ndims - 1]; // # of right cols
-
-    let (out_shape, strides_lhs, strides_rhs, strides_out) = output_shape(&shape_lhs, &shape_rhs);
     let l_mat_size = m * k; // size of matrix component of left array
     let r_mat_size = k * n; // size of matrix component of right array
     let out_mat_size = m * n; // size of matrix component of output array
@@ -78,6 +89,10 @@ pub(crate) fn matmul(lhs: Tensor, rhs: Tensor) -> Tensor {
     let num_l_batches = shape_lhs.num_elements() / l_mat_size;
     let num_r_batches = shape_rhs.num_elements() / r_mat_size;
     let num_out_batches = out_shape.num_elements() / out_mat_size;
+    println!(
+        "num l batches {}, num r batches {}, num out batches {}",
+        num_l_batches, num_r_batches, num_out_batches
+    );
 
     let alpha = 1.0;
     let beta = 0.0;
@@ -86,8 +101,14 @@ pub(crate) fn matmul(lhs: Tensor, rhs: Tensor) -> Tensor {
         let mut out_array = ndarray::Array3::zeros((num_out_batches, m, n));
         let unsafe_shared_out_array = UnsafeSharedRef::new(&mut out_array);
 
-        let lhs_array = reshape(lhs, Shape::new([num_l_batches, m, k])).data();
-        let rhs_array = reshape(rhs, Shape::new([num_r_batches, k, n])).data();
+        let new_lhs_shape = Shape::new([num_l_batches, m, k]);
+        let new_rhs_shape = Shape::new([num_r_batches, k, n]);
+        println!(
+            "lhs shape {:?} rhs shape {:?}",
+            new_lhs_shape, new_rhs_shape
+        );
+        let lhs_array = reshape(lhs, new_lhs_shape).data();
+        let rhs_array = reshape(rhs, new_rhs_shape).data();
 
         iter_range_par!(0, num_out_batches).for_each(|out_batch| {
             // Here, we:
@@ -205,6 +226,7 @@ fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) 
     )
 }
 fn reshape(tensor: Tensor, shape: Shape) -> Tensor {
+    println!("tensor: {:?}, shape {:?}", tensor, shape);
     Tensor::new(tensor.data().into_shape_with_order(shape.dims).unwrap())
 }
 
@@ -244,12 +266,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
+    fn test_matmul() {
         let test_0 = Tensor::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
         let test_1 = Tensor::new(array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad_2 = 2 * test_1
         let mut test_2: Tensor = test_0.clone().dot(reshape(test_1, [4, 2].into()));
         println!("forward: {:?}", test_2);
         println!("_____________________________");
+        test_2.backward();
+        let test_3 = Tensor::new(array![[2.0], [3.0]].into_dyn()); //2X1 // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_4 = Tensor::new(array![[1.0, 2.0], [1.0, 2.0]].into_dyn()); // 2X2 grad_2 = 2 * test_1
+        let test_3 = reshape(test_3, Shape::new([2, 1]));
+        let test_4 = reshape(test_4, Shape::new([2, 2]));
+        let mut test_2: Tensor = test_4.clone().dot(test_3);
+        print!("forward passed");
         test_2.backward();
 
         // assert_eq!(
@@ -264,4 +293,5 @@ mod tests {
 
         // println!("{:?}", test_2);
     }
+    fn test_2() {}
 }

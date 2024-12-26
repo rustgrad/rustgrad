@@ -25,7 +25,7 @@ mod tests {
 
     #[test]
     fn test_optimizer() {
-        let mlp = MLP::new(3, 10, 10, 10);
+        let mlp = MLP::new(3, 10, 5, 1);
         let optimiser = SGDOptimizer::new(0.01, mlp.parameters());
         let x = Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
         let mut forwarded = mlp.forward(x);
