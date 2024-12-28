@@ -99,8 +99,8 @@ impl Tensor {
                 node.second.zero_graph();
             }
             Some(Operation::MatMul(mut node)) => {
-                node.first.zero_graph();
-                node.second.zero_graph();
+                node.lhs.zero_graph();
+                node.rhs.zero_graph();
             }
             Some(Operation::Reshape(mut node)) => {
                 node.tensor.zero_grad();
@@ -126,8 +126,8 @@ impl Tensor {
                     node.second.build_graph();
                 }
                 Some(Operation::MatMul(mut node)) => {
-                    node.first.build_graph();
-                    node.second.build_graph();
+                    node.lhs.build_graph();
+                    node.rhs.build_graph();
                 }
                 Some(Operation::Reshape(mut node)) => {
                     node.tensor.build_graph();

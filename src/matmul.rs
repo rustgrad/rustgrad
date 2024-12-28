@@ -14,8 +14,8 @@ use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]
 pub struct TensorMatMul {
-    pub first: Box<Tensor>,
-    pub second: Box<Tensor>,
+    pub lhs: Box<Tensor>,
+    pub rhs: Box<Tensor>,
 }
 
 impl TensorMatMul {
@@ -23,31 +23,26 @@ impl TensorMatMul {
         let data = matmul(input_a.clone(), input_b.clone());
 
         let node = TensorMatMul {
-            first: Box::new(input_a),
-            second: Box::new(input_b),
+            lhs: Box::new(input_a),
+            rhs: Box::new(input_b),
         };
         Tensor::new_with_prev(data.data(), Operation::MatMul(node))
     }
     pub fn backward(&mut self, output: &mut Tensor) {
         let grad = output.grad().borrow().clone().unwrap();
 
-        let input_a = self.first.data();
-        let input_b = self.second.data();
-        let input_a_t = input_a.reversed_axes();
+        let input_lhs = self.lhs.data();
+        let input_rhs = self.rhs.data();
+        let input_lhs_t = input_lhs.reversed_axes();
 
         // Ckm = Sum_n Akn * Bnm
         // dCkm/dBij = delta(m=j)* Aki
         // dL/dB_ij = dL/dC_km*dC_km/dB_ij
         // dL/dB_ij = dL/dC_kj*Aki
         // dL/dB  = A^T @ (dL/dC)
-        let input_a_t = Tensor::new(input_a_t);
+        let input_lhs_t = Tensor::new(input_lhs_t);
         let grad_tensor = Tensor::new(grad.clone());
-        println!(
-            "input_a_t {:?} grad {:?}",
-            input_a_t.shape(),
-            grad_tensor.shape()
-        );
-        let grad_b = matmul(input_a_t, grad_tensor);
+        let grad_rhs = matmul(input_lhs_t, grad_tensor);
 
         // A @ B = C
         // Ckm = Sum_n Akn * Bnm
@@ -60,15 +55,12 @@ impl TensorMatMul {
         // dL/dA_ij = dL/dC_im*Bjm
         // dL/dA = (dL/dC) @ B
         // dL/dA = B @ (dL/dC)^T
-        let grad_t = grad.reversed_axes();
-        let grad_t = Tensor::new(grad_t);
-        let input_b = Tensor::new(input_b);
-        println!("input b shape {:?}", input_b.shape());
-        println!("grad_t shape {:?}", grad_t.shape());
-        let grad_a = matmul(input_b, grad_t);
+        let grad = Tensor::new(grad);
+        let input_rhs_t = Tensor::new(input_rhs.reversed_axes());
+        let grad_lhs = matmul(grad, input_rhs_t);
 
-        self.first.backward_internal(grad_a.data());
-        self.second.backward_internal(grad_b.data());
+        self.lhs.backward_internal(grad_lhs.data());
+        self.rhs.backward_internal(grad_rhs.data());
     }
 }
 
@@ -76,7 +68,6 @@ pub(crate) fn matmul(lhs: Tensor, rhs: Tensor) -> Tensor {
     let shape_lhs = lhs.shape();
     let shape_rhs = rhs.shape();
     let ndims = shape_lhs.num_dims();
-    println!("lhs {:?}, rhs {:?}, ndims {}", shape_lhs, shape_rhs, ndims);
 
     let (out_shape, strides_lhs, strides_rhs, strides_out) = output_shape(&shape_lhs, &shape_rhs);
     let m = shape_lhs.dims[ndims - 2]; // # of left rows
@@ -89,10 +80,6 @@ pub(crate) fn matmul(lhs: Tensor, rhs: Tensor) -> Tensor {
     let num_l_batches = shape_lhs.num_elements() / l_mat_size;
     let num_r_batches = shape_rhs.num_elements() / r_mat_size;
     let num_out_batches = out_shape.num_elements() / out_mat_size;
-    println!(
-        "num l batches {}, num r batches {}, num out batches {}",
-        num_l_batches, num_r_batches, num_out_batches
-    );
 
     let alpha = 1.0;
     let beta = 0.0;
@@ -103,10 +90,6 @@ pub(crate) fn matmul(lhs: Tensor, rhs: Tensor) -> Tensor {
 
         let new_lhs_shape = Shape::new([num_l_batches, m, k]);
         let new_rhs_shape = Shape::new([num_r_batches, k, n]);
-        println!(
-            "lhs shape {:?} rhs shape {:?}",
-            new_lhs_shape, new_rhs_shape
-        );
         let lhs_array = reshape(lhs, new_lhs_shape).data();
         let rhs_array = reshape(rhs, new_rhs_shape).data();
 
@@ -226,7 +209,15 @@ fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) 
     )
 }
 fn reshape(tensor: Tensor, shape: Shape) -> Tensor {
-    Tensor::new(tensor.data().into_shape_with_order(shape.dims).unwrap())
+    let new_data = tensor.data().into_shape_with_order(shape.dims.clone());
+    let new_data = match new_data {
+        Ok(data) => data,
+        Err(error) => tensor
+            .data()
+            .into_shape_clone(shape.dims)
+            .expect("could not reshape tensor"),
+    };
+    Tensor::new(new_data)
 }
 
 #[derive(Debug, PartialEq)]
