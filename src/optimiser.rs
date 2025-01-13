@@ -10,27 +10,46 @@ impl SGDOptimizer {
     }
     pub fn step(&self) {
         for param in self.parameters.iter() {
-            let change = param.data() + param.grad().expect("Grad not calculated.") * self.lr;
+            let change = -param.grad().expect("Grad not calculated.") * self.lr;
             param.add_value(change);
+        }
+    }
+    pub fn zero_grad(&self) {
+        for param in self.parameters.iter() {
+            param.zero_grad();
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::nn::MLP;
+    use crate::{
+        nn::{LinearLayer, MLP},
+        shape::Shape,
+    };
     use ndarray::array;
 
     use super::*;
 
     #[test]
     fn test_optimizer() {
-        let mlp = MLP::new(3, 10, 5, 1);
-        let optimiser = SGDOptimizer::new(0.01, mlp.parameters());
-        let x = Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
-        let mut forwarded = mlp.forward(x);
-        forwarded.backward();
+        let mlp = MLP::new(2, 2, 10, 1);
+        // let layer = LinearLayer::new(2, 1);
+        let optimiser = SGDOptimizer::new(0.01 as f32, mlp.parameters());
+        let epochs = 100;
+        for i in 0..epochs {
+            optimiser.zero_grad();
+            let input = Tensor::new_random(Shape::new([2]));
+            let forwarded = mlp.forward(input.clone());
+            let mut loss = forwarded.clone() * forwarded.clone();
+            loss.backward();
+            optimiser.step();
+            if i == epochs - 1 {
+                println!("last forward {:?}", forwarded);
+                println!("layer {:?}", mlp);
+                println!("input {:?}", input);
+            }
+        }
         println!("{:?}", mlp);
-        optimiser.step();
     }
 }

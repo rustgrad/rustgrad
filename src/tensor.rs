@@ -1,4 +1,9 @@
 use ndarray::{Array, IxDyn};
+use ndarray_rand::rand_distr::StandardNormal;
+use ndarray_rand::{
+    rand::{self, prelude::*},
+    RandomExt,
+};
 use std::{
     cell::RefCell,
     fmt::{Debug, Pointer, Write},
@@ -50,6 +55,10 @@ impl Tensor {
             prev_op: None,
         }
     }
+    pub fn new_random(shape: Shape) -> Tensor {
+        let val: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
+        return Tensor::new(val);
+    }
     pub fn new_with_prev(data: Array<f32, IxDyn>, prev_op: Operation) -> Tensor {
         let data = DataContainer {
             array: data,
@@ -70,6 +79,7 @@ impl Tensor {
     }
 
     pub fn backward_internal(&mut self, grad: Array<f32, IxDyn>) {
+        assert!(self.container.borrow().array.dim() == grad.dim());
         let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
         self.container.deref().borrow_mut().grad = Some(new_grad);
 
@@ -83,7 +93,7 @@ impl Tensor {
             Some(Operation::MatMul(mut node)) => node.backward(self),
             Some(Operation::Reshape(mut node)) => node.backward(self),
             None => {
-                println!("No previous operation");
+                // println!("No previous operation");
             }
         };
     }
@@ -106,7 +116,7 @@ impl Tensor {
                 node.tensor.zero_grad();
             }
             None => {
-                println!("No previous operation");
+                // println!("No previous operation");
             }
         };
     }
@@ -133,7 +143,7 @@ impl Tensor {
                     node.tensor.build_graph();
                 }
                 None => {
-                    println!("No previous operation");
+                    // println!("No previous operation");
                 }
             };
         }
@@ -192,7 +202,6 @@ struct TensorReshape {
 impl TensorReshape {
     pub fn forward(input: Tensor, shape: Shape) -> Tensor {
         let input_shape = input.shape();
-        println!("shape {:?}, input shape {:?}", shape, input_shape);
 
         let new_data = input.data().into_shape_with_order(shape.dims).unwrap();
         let node = TensorReshape {
@@ -202,11 +211,6 @@ impl TensorReshape {
         Tensor::new_with_prev(new_data, Operation::Reshape(node))
     }
     pub fn backward(&mut self, output: &mut Tensor) {
-        println!(
-            "output_shape {:?}, input_shape {:?}",
-            output.grad().unwrap().shape(),
-            self.input_shape
-        );
         let new_grad = output
             .grad()
             .expect("Missing gradient")
