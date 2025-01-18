@@ -1,4 +1,5 @@
 use crate::shape::Shape;
+use crate::tensor::max;
 use crate::tensor::Tensor;
 use ndarray::Array;
 use ndarray::ArrayBase;
@@ -36,7 +37,8 @@ impl LinearLayer {
     }
     pub fn forward(&self, x: Tensor) -> Tensor {
         let x = x.reshape(Shape::new([1, self.input_dim]));
-        x.dot(self.weight.clone()) + self.bias.clone()
+        let x = x.dot(self.weight.clone()) + self.bias.clone();
+        max(x, Tensor::ZERO(Shape::new([1, self.output_dim])))
     }
     pub fn parameters(&self) -> Vec<Tensor> {
         vec![self.weight.clone(), self.bias.clone()]

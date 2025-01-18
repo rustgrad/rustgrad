@@ -4,10 +4,11 @@ use ndarray_rand::{
     rand::{self, prelude::*},
     RandomExt,
 };
+use std::env::consts::ARCH;
 use std::{
     cell::RefCell,
     fmt::{Debug, Pointer, Write},
-    ops::{Add, Deref, Mul},
+    ops::{Add, Deref, Mul, Neg},
     rc::Rc,
 };
 
@@ -55,6 +56,9 @@ impl Tensor {
             prev_op: None,
         }
     }
+    pub fn ZERO(shape: Shape) -> Tensor {
+        return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
+    }
     pub fn new_random(shape: Shape) -> Tensor {
         let val: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
         return Tensor::new(val);
@@ -92,6 +96,8 @@ impl Tensor {
             Some(Operation::Mul(mut node)) => node.backward(self),
             Some(Operation::MatMul(mut node)) => node.backward(self),
             Some(Operation::Reshape(mut node)) => node.backward(self),
+            Some(Operation::Neg(mut node)) => node.backward(self),
+            Some(Operation::Max(mut node)) => node.backward(self),
             None => {
                 // println!("No previous operation");
             }
@@ -112,9 +118,12 @@ impl Tensor {
                 node.lhs.zero_graph();
                 node.rhs.zero_graph();
             }
-            Some(Operation::Reshape(mut node)) => {
-                node.tensor.zero_grad();
+            Some(Operation::Max(mut node)) => {
+                node.a.zero_graph();
+                node.b.zero_graph();
             }
+            Some(Operation::Reshape(mut node)) => node.tensor.zero_grad(),
+            Some(Operation::Neg(mut node)) => node.tensor.zero_grad(),
             None => {
                 // println!("No previous operation");
             }
@@ -135,13 +144,16 @@ impl Tensor {
                     node.first.build_graph();
                     node.second.build_graph();
                 }
+                Some(Operation::Max(mut node)) => {
+                    node.a.build_graph();
+                    node.b.build_graph();
+                }
                 Some(Operation::MatMul(mut node)) => {
                     node.lhs.build_graph();
                     node.rhs.build_graph();
                 }
-                Some(Operation::Reshape(mut node)) => {
-                    node.tensor.build_graph();
-                }
+                Some(Operation::Reshape(mut node)) => node.tensor.build_graph(),
+                Some(Operation::Neg(mut node)) => node.tensor.build_graph(),
                 None => {
                     // println!("No previous operation");
                 }
@@ -193,6 +205,8 @@ pub(crate) enum Operation {
     Mul(TensorMul),
     MatMul(TensorMatMul),
     Reshape(TensorReshape),
+    Neg(TensorNeg),
+    Max(TensorMax),
 }
 #[derive(Debug, Clone)]
 struct TensorReshape {
@@ -271,6 +285,79 @@ impl TensorAdd {
     }
 }
 
+#[derive(Debug, Clone)]
+struct TensorNeg {
+    tensor: Box<Tensor>,
+}
+impl TensorNeg {
+    fn forward(tensor: Tensor) -> Tensor {
+        let result = -tensor.container.borrow().array.clone();
+        Tensor::new_with_prev(
+            result,
+            Operation::Neg(TensorNeg {
+                tensor: Box::new(tensor),
+            }),
+        )
+    }
+    fn backward(&mut self, output: &mut Tensor) {
+        let grad = output
+            .grad()
+            .unwrap_or(ndarray::Array::zeros(output.shape()));
+        self.tensor.backward_internal(-grad);
+    }
+}
+#[derive(Debug, Clone)]
+struct TensorMax {
+    a: Box<Tensor>,
+    b: Box<Tensor>,
+    take_from_a: Vec<bool>,
+}
+impl TensorMax {
+    fn forward(a: Tensor, b: Tensor) -> Tensor {
+        assert!(a.shape() == b.shape());
+        let first_array = a.data();
+        let second_array = b.data();
+        let (take_from_a, output): (Vec<bool>, Vec<f32>) = a
+            .data()
+            .iter()
+            .zip(b.data().iter())
+            .map(|(a, b)| (a > b, if a > b { *a } else { *b }))
+            .unzip();
+        let output = Array::from_vec(output)
+            .into_shape_with_order(a.shape())
+            .unwrap();
+        Tensor::new_with_prev(
+            output,
+            Operation::Max(TensorMax {
+                a: Box::new(a),
+                b: Box::new(b),
+                take_from_a,
+            }),
+        )
+    }
+    fn backward(&mut self, output: &mut Tensor) {
+        let grad = output.grad().expect("should have gradient");
+        let (grad_a, grad_b): (Vec<f32>, Vec<f32>) = self
+            .take_from_a
+            .iter()
+            .zip(grad.iter())
+            .map(|(&take_first, &grad)| match take_first {
+                true => (grad, 0 as f32),
+                false => (0.0, grad),
+            })
+            .unzip();
+
+        let grad_a = Array::from_vec(grad_a)
+            .into_shape_with_order(output.shape())
+            .unwrap();
+        let grad_b = Array::from_vec(grad_b)
+            .into_shape_with_order(output.shape())
+            .unwrap();
+        self.a.backward_internal(grad_a);
+        self.b.backward_internal(grad_b);
+    }
+}
+
 impl Add<Tensor> for Tensor {
     type Output = Tensor;
     fn add(self, other: Tensor) -> Tensor {
@@ -282,6 +369,15 @@ impl Mul for Tensor {
     fn mul(self, other: Tensor) -> Tensor {
         TensorMul::forward(self, other)
     }
+}
+impl Neg for Tensor {
+    type Output = Tensor;
+    fn neg(self) -> Self::Output {
+        TensorNeg::forward(self)
+    }
+}
+pub fn max(a: Tensor, b: Tensor) -> Tensor {
+    TensorMax::forward(a, b)
 }
 #[cfg(test)]
 mod tests {
