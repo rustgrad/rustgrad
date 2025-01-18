@@ -315,8 +315,6 @@ struct TensorMax {
 impl TensorMax {
     fn forward(a: Tensor, b: Tensor) -> Tensor {
         assert!(a.shape() == b.shape());
-        let first_array = a.data();
-        let second_array = b.data();
         let (take_from_a, output): (Vec<bool>, Vec<f32>) = a
             .data()
             .iter()
