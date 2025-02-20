@@ -34,7 +34,8 @@ mod tests {
 
     #[test]
     fn test_optimizer() {
-        let mlp = MLP::new(2, 2, 10, 1);
+        let mlp = MLP::new(2, 2, 2, 1);
+        println!("MLP {:?}", mlp);
         // let layer = LinearLayer::new(2, 1);
         let optimiser = SGDOptimizer::new(0.001 as f32, mlp.parameters());
         let epochs = 1000;
@@ -50,18 +51,20 @@ mod tests {
                     .unwrap(),
             );
             let mut loss = -expected_output.clone() + forwarded.clone();
+            loss = loss.clone() * loss.clone();
             loss.backward();
+            // println!("network {:?}", mlp);
             optimiser.step();
 
             println!("loss {:?}", loss.data());
             if i == epochs - 1 {
-                println!("loss {:?}", loss.data());
-                println!("last forward {:?}", forwarded);
-                // println!("layer {:?}", mlp);
                 println!("input {:?}", input);
+                println!("loss {:?}", loss.data());
+                println!("output {:?}", forwarded);
+                // println!("layer {:?}", mlp);
                 println!("expected_output {:?}", expected_output)
             }
         }
-        // println!("{:?}", mlp);
+        println!("{:?}", mlp);
     }
 }
