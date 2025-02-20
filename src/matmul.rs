@@ -1,9 +1,6 @@
 use std::borrow::Borrow;
-
 use ndarray::s;
-use ndarray::Array;
 use ndarray::Dimension;
-use ndarray::LinalgScalar;
 
 use crate::iter_range_par;
 use crate::run_par;
@@ -12,23 +9,27 @@ use crate::sharing::UnsafeSharedRef;
 use crate::tensor::Operation;
 use crate::tensor::Tensor;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct TensorMatMul {
-    pub lhs: Box<Tensor>,
-    pub rhs: Box<Tensor>,
+    pub lhs: Tensor,
+    pub rhs: Tensor,
 }
 
 impl TensorMatMul {
     pub fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
         let data = matmul(input_a.clone(), input_b.clone());
-
         let node = TensorMatMul {
-            lhs: Box::new(input_a),
-            rhs: Box::new(input_b),
+            lhs: input_a,
+            rhs: input_b,
         };
-        Tensor::new_with_prev(data.data(), Operation::MatMul(node))
+        Tensor::new_with_prev(data.data(), Rc::new(RefCell::new(node)))
     }
-    pub fn backward(&mut self, output: &mut Tensor) {
+}
+
+impl Operation for TensorMatMul {
+    fn backward(&mut self, output: &mut Tensor) {
         let grad = output.grad().borrow().clone().unwrap();
 
         let input_lhs = self.lhs.data();
@@ -61,6 +62,16 @@ impl TensorMatMul {
 
         self.lhs.backward_internal(grad_lhs.data());
         self.rhs.backward_internal(grad_rhs.data());
+    }
+
+    fn zero_graph(&self) {
+        self.lhs.zero_graph();
+        self.rhs.zero_graph();
+    }
+
+    fn build_graph(&self) {
+        self.lhs.build_graph();
+        self.rhs.build_graph();
     }
 }
 

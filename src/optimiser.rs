@@ -34,11 +34,11 @@ mod tests {
 
     #[test]
     fn test_optimizer() {
-        let mlp = MLP::new(2, 2, 2, 1);
+        let mlp = MLP::new(1, 2, 2, 1);
         println!("MLP {:?}", mlp);
         // let layer = LinearLayer::new(2, 1);
         let optimiser = SGDOptimizer::new(0.001 as f32, mlp.parameters());
-        let epochs = 1000;
+        let epochs = 10000;
         for i in 0..epochs {
             optimiser.zero_grad();
             let input = Tensor::new_random(Shape::new([2]));
