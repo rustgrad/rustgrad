@@ -5,6 +5,7 @@ use ndarray_rand::{
     RandomExt,
 };
 use std::env::consts::ARCH;
+use std::ops::Div;
 use std::{
     cell::RefCell,
     fmt::{Debug, Pointer, Write},
@@ -98,6 +99,7 @@ impl Tensor {
             Some(Operation::Reshape(mut node)) => node.backward(self),
             Some(Operation::Neg(mut node)) => node.backward(self),
             Some(Operation::Max(mut node)) => node.backward(self),
+            Some(Operation::Div(mut node)) => node.backward(self),
             None => {
                 // println!("No previous operation");
             }
@@ -107,20 +109,24 @@ impl Tensor {
         self.container.deref().borrow_mut().num_consumers = 0;
         match self.prev_op.clone() {
             Some(Operation::Add(mut node)) => {
-                node.first.zero_graph();
-                node.second.zero_graph();
+                node.lhs.zero_graph();
+                node.rhs.zero_graph();
             }
             Some(Operation::Mul(mut node)) => {
-                node.first.zero_graph();
-                node.second.zero_graph();
+                node.lhs.zero_graph();
+                node.rhs.zero_graph();
             }
             Some(Operation::MatMul(mut node)) => {
                 node.lhs.zero_graph();
                 node.rhs.zero_graph();
             }
+            Some(Operation::Div(mut node)) => {
+                node.lhs.zero_graph();
+                node.rhs.zero_graph();
+            }
             Some(Operation::Max(mut node)) => {
-                node.a.zero_graph();
-                node.b.zero_graph();
+                node.lhs.zero_graph();
+                node.rhs.zero_graph();
             }
             Some(Operation::Reshape(mut node)) => node.tensor.zero_grad(),
             Some(Operation::Neg(mut node)) => node.tensor.zero_grad(),
@@ -137,18 +143,22 @@ impl Tensor {
         } else {
             match self.prev_op.clone() {
                 Some(Operation::Add(mut node)) => {
-                    node.first.build_graph();
-                    node.second.build_graph();
+                    node.lhs.build_graph();
+                    node.rhs.build_graph();
                 }
                 Some(Operation::Mul(mut node)) => {
-                    node.first.build_graph();
-                    node.second.build_graph();
+                    node.lhs.build_graph();
+                    node.rhs.build_graph();
                 }
                 Some(Operation::Max(mut node)) => {
-                    node.a.build_graph();
-                    node.b.build_graph();
+                    node.lhs.build_graph();
+                    node.rhs.build_graph();
                 }
                 Some(Operation::MatMul(mut node)) => {
+                    node.lhs.build_graph();
+                    node.rhs.build_graph();
+                }
+                Some(Operation::Div(mut node)) => {
                     node.lhs.build_graph();
                     node.rhs.build_graph();
                 }
@@ -207,6 +217,7 @@ pub(crate) enum Operation {
     Reshape(TensorReshape),
     Neg(TensorNeg),
     Max(TensorMax),
+    Div(TensorDiv),
 }
 #[derive(Debug, Clone)]
 struct TensorReshape {
@@ -236,8 +247,8 @@ impl TensorReshape {
 
 #[derive(Debug, Clone)]
 struct TensorMul {
-    first: Box<Tensor>,
-    second: Box<Tensor>,
+    lhs: Box<Tensor>,
+    rhs: Box<Tensor>,
 }
 
 impl TensorMul {
@@ -245,33 +256,60 @@ impl TensorMul {
         let result =
             input_a.container.borrow().array.clone() * input_b.container.borrow().array.clone();
         let node = TensorMul {
-            first: Box::new(input_a),
-            second: Box::new(input_b),
+            lhs: Box::new(input_a),
+            rhs: Box::new(input_b),
         };
         Tensor::new_with_prev(result, Operation::Mul(node))
     }
     pub fn backward(&mut self, output: &mut Tensor) {
         let grad = output.container.borrow().grad.clone();
         let grad = grad.unwrap_or(Array::ones(output.shape()));
-        let grad_a = grad.clone() * self.second.container.borrow().array.clone();
-        let grad_b = grad.clone() * self.first.container.borrow().array.clone();
-        self.first.backward_internal(grad_a);
-        self.second.backward_internal(grad_b);
+        let grad_a = grad.clone() * self.rhs.container.borrow().array.clone();
+        let grad_b = grad.clone() * self.lhs.container.borrow().array.clone();
+        self.lhs.backward_internal(grad_a);
+        self.rhs.backward_internal(grad_b);
+    }
+}
+#[derive(Debug, Clone)]
+struct TensorDiv {
+    lhs: Box<Tensor>,
+    rhs: Box<Tensor>,
+}
+impl TensorDiv {
+    fn forward(lhs: Tensor, rhs: Tensor) -> Tensor {
+        let result = lhs.data() / rhs.data();
+        let node = TensorDiv {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        };
+        Tensor::new_with_prev(result, Operation::Div(node))
+    }
+    fn backward(&mut self, output: &mut Tensor) {
+        let grad = output.grad().unwrap_or_else(|| Array::ones(output.shape()));
+        let rhs_data = self.rhs.data();
+        let lhs_data = self.lhs.data();
+
+        // Gradient with respect to lhs: grad * (1 / rhs)
+        let lhs_grad = grad.clone() / rhs_data.clone();
+
+        // Gradient with respect to rhs: grad * (-lhs / rhs^2)
+        let rhs_grad = -grad * lhs_data / (rhs_data.clone() * rhs_data);
+        self.lhs.backward_internal(lhs_grad);
+        self.rhs.backward_internal(rhs_grad);
     }
 }
 
 #[derive(Debug, Clone)]
 struct TensorAdd {
-    first: Box<Tensor>,
-    second: Box<Tensor>,
+    lhs: Box<Tensor>,
+    rhs: Box<Tensor>,
 }
 impl TensorAdd {
-    fn forward(input_a: Tensor, input_b: Tensor) -> Tensor {
-        let result =
-            input_a.container.borrow().array.clone() + input_b.container.borrow().array.clone();
+    fn forward(lhs: Tensor, rhs: Tensor) -> Tensor {
+        let result = lhs.container.borrow().array.clone() + rhs.container.borrow().array.clone();
         let node = TensorAdd {
-            first: Box::new(input_a),
-            second: Box::new(input_b),
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
         };
         Tensor::new_with_prev(result, Operation::Add(node))
     }
@@ -280,8 +318,8 @@ impl TensorAdd {
         let grad = maybe_grad.unwrap_or(ndarray::Array::zeros(output.shape()));
         let grad_a = grad.clone();
         let grad_b = grad.clone();
-        self.first.backward_internal(grad_a);
-        self.second.backward_internal(grad_b);
+        self.lhs.backward_internal(grad_a);
+        self.rhs.backward_internal(grad_b);
     }
 }
 
@@ -308,27 +346,27 @@ impl TensorNeg {
 }
 #[derive(Debug, Clone)]
 struct TensorMax {
-    a: Box<Tensor>,
-    b: Box<Tensor>,
+    lhs: Box<Tensor>,
+    rhs: Box<Tensor>,
     take_from_a: Vec<bool>,
 }
 impl TensorMax {
-    fn forward(a: Tensor, b: Tensor) -> Tensor {
-        assert!(a.shape() == b.shape());
-        let (take_from_a, output): (Vec<bool>, Vec<f32>) = a
+    fn forward(lhs: Tensor, rhs: Tensor) -> Tensor {
+        assert!(lhs.shape() == rhs.shape());
+        let (take_from_a, output): (Vec<bool>, Vec<f32>) = lhs
             .data()
             .iter()
-            .zip(b.data().iter())
+            .zip(rhs.data().iter())
             .map(|(a, b)| (a > b, if a > b { *a } else { *b }))
             .unzip();
         let output = Array::from_vec(output)
-            .into_shape_with_order(a.shape())
+            .into_shape_with_order(lhs.shape())
             .unwrap();
         Tensor::new_with_prev(
             output,
             Operation::Max(TensorMax {
-                a: Box::new(a),
-                b: Box::new(b),
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
                 take_from_a,
             }),
         )
@@ -351,8 +389,8 @@ impl TensorMax {
         let grad_b = Array::from_vec(grad_b)
             .into_shape_with_order(output.shape())
             .unwrap();
-        self.a.backward_internal(grad_a);
-        self.b.backward_internal(grad_b);
+        self.lhs.backward_internal(grad_a);
+        self.rhs.backward_internal(grad_b);
     }
 }
 
@@ -372,6 +410,12 @@ impl Neg for Tensor {
     type Output = Tensor;
     fn neg(self) -> Self::Output {
         TensorNeg::forward(self)
+    }
+}
+impl Div for Tensor {
+    type Output = Tensor;
+    fn div(self, rhs: Tensor) -> Self::Output {
+        TensorDiv::forward(self, rhs)
     }
 }
 pub fn max(a: Tensor, b: Tensor) -> Tensor {
