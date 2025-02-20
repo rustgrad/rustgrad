@@ -19,9 +19,10 @@ pub struct LinearLayer {
     bias: Tensor,
     input_dim: usize,
     output_dim: usize,
+    non_linearity: bool,
 }
 impl LinearLayer {
-    pub fn new(input_dim: usize, output_dim: usize) -> LinearLayer {
+    pub fn new(input_dim: usize, output_dim: usize, non_linearity: bool) -> LinearLayer {
         // let bias: Array<f32, IxDyn> = Array::random(input_dim, StandardNormal).into_dyn();
         let bias = Tensor::new_random(Shape::new([1, output_dim]));
         // let weight: Array<f32, IxDyn> = Array::random((input_dim, output_dim), StandardNormal).into_dyn();
@@ -31,12 +32,16 @@ impl LinearLayer {
             weight,
             input_dim,
             output_dim,
+            non_linearity,
         }
     }
     pub fn forward(&self, x: Tensor) -> Tensor {
-        let x = x.reshape(Shape::new([1, self.input_dim]));
-        let x = x.dot(self.weight.clone()) + self.bias.clone();
-        max(x, Tensor::ZERO(Shape::new([1, self.output_dim])))
+        let mut x = x.reshape(Shape::new([1, self.input_dim]));
+        x = x.dot(self.weight.clone()) + self.bias.clone();
+        if self.non_linearity {
+            x = max(x, Tensor::ZERO(Shape::new([1, self.output_dim])));
+        }
+        x
     }
     pub fn parameters(&self) -> Vec<Tensor> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -45,11 +50,17 @@ impl LinearLayer {
 
 impl MLP {
     pub fn new(depth: usize, input_dim: usize, hidden_dim: usize, output_dim: usize) -> MLP {
-        let mut layers = vec![LinearLayer::new(input_dim, hidden_dim)];
-        for _ in 0..depth - 2 {
-            layers.push(LinearLayer::new(hidden_dim, hidden_dim));
+        if depth == 1 {
+            return MLP {
+                layers: vec![LinearLayer::new(input_dim, output_dim, false)],
+            };
         }
-        layers.push(LinearLayer::new(hidden_dim, output_dim));
+
+        let mut layers = vec![LinearLayer::new(input_dim, hidden_dim, true)];
+        for _ in 0..depth - 2 {
+            layers.push(LinearLayer::new(hidden_dim, hidden_dim, true));
+        }
+        layers.push(LinearLayer::new(hidden_dim, output_dim, false));
         MLP { layers }
     }
     pub fn forward(&self, mut x: Tensor) -> Tensor {
@@ -74,8 +85,8 @@ mod tests {
 
     #[test]
     fn test_linear_layer() {
-        let layer_1 = LinearLayer::new(10, 5);
-        let layer_2 = LinearLayer::new(5, 1);
+        let layer_1 = LinearLayer::new(10, 5, true);
+        let layer_2 = LinearLayer::new(5, 1, true);
         println!("{:?}", layer_1);
         let x = Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
         let mut x = layer_1.forward(x);
