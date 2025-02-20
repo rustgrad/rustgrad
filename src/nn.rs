@@ -17,10 +17,9 @@ pub struct LinearLayer {
 }
 impl LinearLayer {
     pub fn new(input_dim: usize, output_dim: usize, non_linearity: bool) -> LinearLayer {
-        // let bias: Array<f32, IxDyn> = Array::random(input_dim, StandardNormal).into_dyn();
-        let bias = Tensor::new_random(Shape::new([1, output_dim]));
-        // let weight: Array<f32, IxDyn> = Array::random((input_dim, output_dim), StandardNormal).into_dyn();
-        let weight = Tensor::new_random(Shape::new([input_dim, output_dim]));
+        let bias = Tensor::new_random(Shape::new([1, output_dim]), 0.0, 0.00);
+        let std = (2.0 / (input_dim as f32)).sqrt();
+        let weight = Tensor::new_random(Shape::new([input_dim, output_dim]), 0.0, std);
         LinearLayer {
             bias,
             weight,

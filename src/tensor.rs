@@ -62,9 +62,10 @@ impl Tensor {
     pub fn ZERO(shape: Shape) -> Tensor {
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
-    pub fn new_random(shape: Shape) -> Tensor {
-        let val: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
-        return Tensor::new(val);
+    pub fn new_random(shape: Shape, mean: f32, std: f32) -> Tensor {
+        let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
+        value = value * std + mean;
+        return Tensor::new(value);
     }
     pub fn new_with_prev(data: Array<f32, IxDyn>, prev_op: Rc<RefCell<dyn Operation>>) -> Tensor {
         let data = DataContainer {

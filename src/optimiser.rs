@@ -19,6 +19,10 @@ impl SGDOptimizer {
             param.zero_grad();
         }
     }
+
+    pub fn update_lr(&mut self) {
+        self.lr *= 0.9999;
+    }
 }
 
 #[cfg(test)]
@@ -34,14 +38,15 @@ mod tests {
 
     #[test]
     fn test_optimizer() {
-        let mlp = MLP::new(1, 2, 2, 1);
+        let mlp = MLP::new(3, 2, 100, 1);
         println!("MLP {:?}", mlp);
         // let layer = LinearLayer::new(2, 1);
-        let optimiser = SGDOptimizer::new(0.001 as f32, mlp.parameters());
-        let epochs = 10000;
+        let mut optimiser = SGDOptimizer::new(0.1 as f32, mlp.parameters());
+        let epochs = 1;
+        let mut accumulated_loss = 0.0;
         for i in 0..epochs {
             optimiser.zero_grad();
-            let input = Tensor::new_random(Shape::new([2]));
+            let input = Tensor::new_random(Shape::new([2]), 0.0, 1.0);
             let forwarded = mlp.forward(input.clone());
             let expected_output = input.data();
             let expected_output = expected_output[0] - expected_output[1];
@@ -56,14 +61,20 @@ mod tests {
             // println!("network {:?}", mlp);
             optimiser.step();
 
-            println!("loss {:?}", loss.data());
-            if i == epochs - 1 {
-                println!("input {:?}", input);
-                println!("loss {:?}", loss.data());
-                println!("output {:?}", forwarded);
+            accumulated_loss += loss.data().sum();
+            println!("{:?}", loss);
+            if i % 1000 == 0 {
+                println!("loss {:?}", accumulated_loss / 1000.0);
+                // println!("input {:?}", input);
+                // println!("loss {:?}", loss.data());
+                println!("output {:?}", forwarded.data());
                 // println!("layer {:?}", mlp);
-                println!("expected_output {:?}", expected_output)
+                println!("expected_output {:?}", expected_output.data());
+                println!("lr: {:?}", optimiser.lr);
+                println!("===============================");
+                accumulated_loss = 0.0;
             }
+            optimiser.update_lr();
         }
         println!("{:?}", mlp);
     }
