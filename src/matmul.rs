@@ -1,6 +1,6 @@
-use std::borrow::Borrow;
 use ndarray::s;
 use ndarray::Dimension;
+use std::borrow::Borrow;
 
 use crate::iter_range_par;
 use crate::run_par;
@@ -262,7 +262,7 @@ impl Strides {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
+    use ndarray::{array, Array};
 
     use super::*;
     #[test]

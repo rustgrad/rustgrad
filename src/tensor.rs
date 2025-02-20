@@ -1,9 +1,6 @@
 use ndarray::{Array, IxDyn};
 use ndarray_rand::rand_distr::StandardNormal;
-use ndarray_rand::{
-    rand::{prelude::*},
-    RandomExt,
-};
+use ndarray_rand::{rand::prelude::*, RandomExt};
 use std::ops::Div;
 use std::{
     cell::RefCell,
@@ -277,7 +274,9 @@ impl TensorNeg {
 
 impl Operation for TensorNeg {
     fn backward(&mut self, output: &mut Tensor) {
-        let grad = output.grad().unwrap_or(ndarray::Array::zeros(output.shape()));
+        let grad = output
+            .grad()
+            .unwrap_or(ndarray::Array::zeros(output.shape()));
         self.tensor.backward_internal(-grad);
     }
 
@@ -306,8 +305,14 @@ impl TensorMax {
             .zip(rhs.data().iter())
             .map(|(a, b)| (a > b, if a > b { *a } else { *b }))
             .unzip();
-        let output = Array::from_vec(output).into_shape_with_order(lhs.shape()).unwrap();
-        let node = TensorMax { lhs, rhs, take_from_a };
+        let output = Array::from_vec(output)
+            .into_shape_with_order(lhs.shape())
+            .unwrap();
+        let node = TensorMax {
+            lhs,
+            rhs,
+            take_from_a,
+        };
         Tensor::new_with_prev(output, Rc::new(RefCell::new(node)))
     }
 }
@@ -325,8 +330,12 @@ impl Operation for TensorMax {
             })
             .unzip();
 
-        let grad_a = Array::from_vec(grad_a).into_shape_with_order(output.shape()).unwrap();
-        let grad_b = Array::from_vec(grad_b).into_shape_with_order(output.shape()).unwrap();
+        let grad_a = Array::from_vec(grad_a)
+            .into_shape_with_order(output.shape())
+            .unwrap();
+        let grad_b = Array::from_vec(grad_b)
+            .into_shape_with_order(output.shape())
+            .unwrap();
         self.lhs.backward_internal(grad_a);
         self.rhs.backward_internal(grad_b);
     }
@@ -350,7 +359,6 @@ struct TensorReshape {
 
 impl TensorReshape {
     pub fn forward(input: Tensor, shape: Shape) -> Tensor {
-        let input_shape = input.shape();
         let new_data = input.data().into_shape_with_order(shape.dims).unwrap();
         let node = TensorReshape {
             input_shape: input.shape(),
@@ -362,7 +370,8 @@ impl TensorReshape {
 
 impl Operation for TensorReshape {
     fn backward(&mut self, output: &mut Tensor) {
-        let new_grad = output.grad()
+        let new_grad = output
+            .grad()
             .expect("Missing gradient")
             .into_shape_with_order(self.input_shape.dims.clone())
             .unwrap();
