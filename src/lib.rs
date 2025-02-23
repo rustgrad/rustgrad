@@ -3,6 +3,7 @@ pub mod nn;
 pub mod optimiser;
 pub mod parallel;
 pub mod shape;
+pub mod shaped_tensor;
 pub mod sharing;
 pub mod tensor;
 
