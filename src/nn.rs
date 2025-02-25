@@ -1,5 +1,7 @@
 use crate::shape::Shape;
 use crate::tensor::max;
+use crate::tensor::Dimension;
+use crate::tensor::Static;
 use crate::tensor::Tensor;
 
 #[derive(Debug)]
@@ -8,18 +10,18 @@ pub struct MLP {
 }
 
 #[derive(Debug)]
-pub struct LinearLayer {
-    weight: Tensor,
-    bias: Tensor,
+pub struct LinearLayer<I: Dimension, O: Dimension, B: Dimension> {
+    weight: Tensor<I, O, B>,
+    bias: Tensor<Static<1>, O, B>,
     input_dim: usize,
     output_dim: usize,
     non_linearity: bool,
 }
-impl LinearLayer {
-    pub fn new(input_dim: usize, output_dim: usize, non_linearity: bool) -> LinearLayer {
-        let bias = Tensor::new_random(Shape::new([1, output_dim]), 0.0, 0.00);
+impl<I: Dimension, O: Dimension, B: Dimension> LinearLayer<I, O, B> {
+    pub fn new(input_dim: usize, output_dim: usize, non_linearity: bool) -> LinearLayer<I, O, B> {
+        let bias = Tensor::<Static<1>, O, B>::new_random(0.0, 0.00);
         let std = (2.0 / (input_dim as f32)).sqrt();
-        let weight = Tensor::new_random(Shape::new([input_dim, output_dim]), 0.0, std);
+        let weight = Tensor::<I, O, B>::new_random(0.0, std);
         LinearLayer {
             bias,
             weight,
@@ -28,11 +30,11 @@ impl LinearLayer {
             non_linearity,
         }
     }
-    pub fn forward(&self, x: Tensor) -> Tensor {
+    pub fn forward(&self, x: Tensor<I, Static<1>, B>) -> Tensor<O, 1, B> {
         let mut x = x.reshape(Shape::new([1, self.input_dim]));
         x = x.dot(self.weight.clone()) + self.bias.clone();
         if self.non_linearity {
-            x = max(x, Tensor::ZERO(Shape::new([1, self.output_dim])));
+            x = max(x, Tensor::ZERO(x.shape()));
         }
         x
     }

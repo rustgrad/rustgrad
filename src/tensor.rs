@@ -60,8 +60,8 @@ impl Dimension for Dynamic {
     }
 }
 
-pub trait Operation<B: Dimension, I: Dimension, J: Dimension>: std::fmt::Debug {
-    fn backward(&mut self, output: &mut Tensor<B, I, J>);
+pub trait Operation<I: Dimension, J: Dimension, B: Dimension>: std::fmt::Debug {
+    fn backward(&mut self, output: &mut Tensor<I, J, B>);
     fn zero_graph(&self);
     fn build_graph(&self);
 }
@@ -72,7 +72,7 @@ pub fn test_fn() {
     const TEST: usize = 3;
 
     let tensor4 = Tensor::<Static<2>, Static<TEST>>::ZERO();
-    let result_a = tensor.dot(tensor2);
+    // let result_a = tensor.dot(tensor2);
     let tensor = Tensor::<Static<4>>::ZERO();
     let tensor2 = Tensor::<Static<4>>::ZERO();
     let result_b = tensor2 + tensor;
@@ -82,54 +82,59 @@ pub fn test_fn() {
 pub struct ShapeTest {}
 
 #[derive(Debug, Clone)]
-pub struct Tensor<B: Dimension = Static<1>, I: Dimension = Static<1>, J: Dimension = Static<1>> {
+pub struct Tensor<I: Dimension = Static<1>, J: Dimension = Static<1>, B: Dimension = Static<1>> {
     pub container: Rc<RefCell<DataContainer>>,
-    prev_op: Option<Rc<RefCell<dyn Operation<B, I, J>>>>,
+    prev_op: Option<Rc<RefCell<dyn Operation<I, J, B>>>>,
 }
 
-impl<const B: usize, const I: usize, const J: usize> Tensor<Static<B>, Static<I>, Static<J>> {
-    pub fn ZERO() -> Tensor<Static<B>, Static<I>, Static<J>> {
-        let dims = vec![B, I, J];
+impl<const I: usize, const J: usize, const B: usize> Tensor<Static<I>, Static<J>, Static<B>> {}
+
+impl<
+        I: Dimension + 'static + Clone,
+        J: Dimension + 'static + Clone,
+        B: Dimension + 'static + Clone,
+    > Tensor<I, J, B>
+{
+    pub fn ZERO() -> Tensor<I, J, B> {
+        let i = I::default();
+        let j = J::default();
+        let b = B::default();
+        let dims = vec![b.value(), i.value(), j.value()];
         let shape = Shape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
 
-    pub fn new_random(mean: f32, std: f32) -> Tensor<Static<B>, Static<I>, Static<J>> {
-        let dims = vec![B, I, J];
+    pub fn new_random(mean: f32, std: f32) -> Tensor<I, J, B> {
+        let i = I::default();
+        let j = J::default();
+        let b = B::default();
+        let dims = vec![b.value(), i.value(), j.value()];
         let shape = Shape { dims };
         let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
         value = value * std + mean;
         return Tensor::new(value);
     }
-}
-
-impl<
-        B: Dimension + 'static + Clone,
-        I: Dimension + 'static + Clone,
-        J: Dimension + 'static + Clone,
-    > Tensor<B, I, J>
-{
-    pub fn new(data: Array<f32, IxDyn>) -> Tensor<B, I, J> {
+    pub fn new(data: Array<f32, IxDyn>) -> Tensor<I, J, B> {
         let data = DataContainer {
             array: data,
             grad: None,
             num_consumers: 0,
         };
-        Tensor::<B, I, J> {
+        Tensor::<I, J, B> {
             container: Rc::new(RefCell::new(data)),
             prev_op: None,
         }
     }
     pub fn new_with_prev(
         data: Array<f32, IxDyn>,
-        prev_op: Rc<RefCell<dyn Operation<B, I, J>>>,
-    ) -> Tensor<B, I, J> {
+        prev_op: Rc<RefCell<dyn Operation<I, J, B>>>,
+    ) -> Tensor<I, J, B> {
         let data = DataContainer {
             array: data,
             grad: None,
             num_consumers: 0,
         };
-        Tensor::<B, I, J> {
+        Tensor::<I, J, B> {
             container: Rc::new(RefCell::new(data)),
             prev_op: Some(prev_op),
         }
@@ -193,14 +198,14 @@ impl<
         shape.to_vec().into()
     }
 
-    pub fn dot<K: Dimension + Clone>(self, rhs: Tensor<B, J, K>) -> Tensor<B, I, K> {
+    pub fn dot<K: Dimension + Clone>(self, rhs: Tensor<I, J, K>) -> Tensor<I, J, K> {
         unimplemented!()
     }
     pub fn reshape<const I2: usize, const J2: usize>(
         self,
         shape: Shape,
-    ) -> Tensor<B, Static<I2>, Static<J2>> {
-        TensorReshape::<B, I, J, I2, J2>::forward(self)
+    ) -> Tensor<I, J, Static<I2>> {
+        TensorReshape::<I, J, B, I2, J2>::forward(self)
     }
 }
 
@@ -221,42 +226,31 @@ impl<const N: usize> DimCompatible<Static<N>> for Dynamic {
 }
 
 #[derive(Debug, Clone)]
-struct TensorAdd<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension> {
-    lhs: Tensor<B, I1, J1>,
-    rhs: Tensor<B, I2, J2>,
+struct TensorAdd<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> {
+    lhs: Tensor<I1, J1, B>,
+    rhs: Tensor<I2, J2, B>,
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    TensorAdd<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    TensorAdd<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn forward(
-        lhs: Tensor<B, I1, J1>,
-        rhs: Tensor<B, I2, J2>,
-    ) -> Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output> {
+    fn forward(lhs: Tensor<I1, J1, B>, rhs: Tensor<I2, J2, B>) -> Tensor<I1, J1, B> {
         let result = lhs.container.borrow().array.clone() + rhs.container.borrow().array.clone();
         let node = TensorAdd { lhs, rhs };
         Tensor::new_with_prev(result, Rc::new(RefCell::new(node)))
     }
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    Operation<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>
-    for TensorAdd<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> Operation<I1, J1, B>
+    for TensorAdd<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn backward(
-        &mut self,
-        output: &mut Tensor<
-            B,
-            <I1 as DimCompatible<I2>>::Output,
-            <J1 as DimCompatible<J2>>::Output,
-        >,
-    ) {
+    fn backward(&mut self, output: &mut Tensor<I1, J1, B>) {
         let grad = output.grad().unwrap_or_else(|| Array::ones(output.shape()));
         let grad_a = grad.clone();
         let grad_b = grad;
@@ -275,56 +269,45 @@ where
     }
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    Add<Tensor<B, I2, J2>> for Tensor<B, I1, J1>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    Add<Tensor<I2, J2, B>> for Tensor<I1, J1, B>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    type Output = Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>;
+    type Output = Tensor<I1, J1, B>;
 
-    fn add(self, other: Tensor<B, I2, J2>) -> Self::Output {
+    fn add(self, other: Tensor<I2, J2, B>) -> Self::Output {
         TensorAdd::forward(self, other)
     }
 }
 
 #[derive(Debug, Clone)]
-struct TensorMul<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension> {
-    lhs: Tensor<B, I1, J1>,
-    rhs: Tensor<B, I2, J2>,
+struct TensorMul<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> {
+    lhs: Tensor<I1, J1, B>,
+    rhs: Tensor<I2, J2, B>,
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    TensorMul<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    TensorMul<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn forward(
-        lhs: Tensor<B, I1, J1>,
-        rhs: Tensor<B, I2, J2>,
-    ) -> Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output> {
+    fn forward(lhs: Tensor<I1, J1, B>, rhs: Tensor<I2, J2, B>) -> Tensor<I1, J1, B> {
         let result = lhs.container.borrow().array.clone() * rhs.container.borrow().array.clone();
         let node = TensorMul { lhs, rhs };
         Tensor::new_with_prev(result, Rc::new(RefCell::new(node)))
     }
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    Operation<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>
-    for TensorMul<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> Operation<I1, J1, B>
+    for TensorMul<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn backward(
-        &mut self,
-        output: &mut Tensor<
-            B,
-            <I1 as DimCompatible<I2>>::Output,
-            <J1 as DimCompatible<J2>>::Output,
-        >,
-    ) {
+    fn backward(&mut self, output: &mut Tensor<I1, J1, B>) {
         let grad = output.grad().unwrap_or_else(|| Array::ones(output.shape()));
         let grad_a = grad.clone() * self.rhs.container.borrow().array.clone();
         let grad_b = grad * self.lhs.container.borrow().array.clone();
@@ -343,29 +326,29 @@ where
     }
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    Mul<Tensor<B, I2, J2>> for Tensor<B, I1, J1>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    Mul<Tensor<I2, J2, B>> for Tensor<I1, J1, B>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    type Output = Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>;
+    type Output = Tensor<I1, J1, B>;
 
-    fn mul(self, other: Tensor<B, I2, J2>) -> Self::Output {
+    fn mul(self, other: Tensor<I2, J2, B>) -> Self::Output {
         TensorMul::forward(self, other)
     }
 }
 
 #[derive(Debug, Clone)]
-struct TensorReshape<B: Dimension, I: Dimension, J: Dimension, const O1: usize, const O2: usize> {
-    tensor: Tensor<B, I, J>,
+struct TensorReshape<I: Dimension, J: Dimension, B: Dimension, const O1: usize, const O2: usize> {
+    tensor: Tensor<I, J, B>,
     input_shape: Shape,
 }
 
-impl<B: Dimension, I: Dimension, J: Dimension, const O1: usize, const O2: usize>
-    TensorReshape<B, I, J, O1, O2>
+impl<I: Dimension, J: Dimension, B: Dimension, const O1: usize, const O2: usize>
+    TensorReshape<I, J, B, O1, O2>
 {
-    pub fn forward(input: Tensor<B, I, J>) -> Tensor<B, Static<O1>, Static<O2>> {
+    pub fn forward(input: Tensor<I, J, B>) -> Tensor<I, J, Static<O1>> {
         let shape = Shape { dims: vec![O1, O2] };
         let new_data = input.data().into_shape_with_order(shape.dims).unwrap();
         let node = TensorReshape {
@@ -376,10 +359,10 @@ impl<B: Dimension, I: Dimension, J: Dimension, const O1: usize, const O2: usize>
     }
 }
 
-impl<B: Dimension, I: Dimension, J: Dimension, const O1: usize, const O2: usize>
-    Operation<B, Static<O1>, Static<O2>> for TensorReshape<B, I, J, O1, O2>
+impl<I: Dimension, J: Dimension, B: Dimension, const O1: usize, const O2: usize>
+    Operation<I, J, Static<O1>> for TensorReshape<I, J, B, O1, O2>
 {
-    fn backward(&mut self, output: &mut Tensor<B, Static<O1>, Static<O2>>) {
+    fn backward(&mut self, output: &mut Tensor<I, J, Static<O1>>) {
         let new_grad = output
             .grad()
             .expect("Missing gradient")
@@ -398,42 +381,31 @@ impl<B: Dimension, I: Dimension, J: Dimension, const O1: usize, const O2: usize>
 }
 
 #[derive(Debug, Clone)]
-struct TensorDiv<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension> {
-    lhs: Tensor<B, I1, J1>,
-    rhs: Tensor<B, I2, J2>,
+struct TensorDiv<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> {
+    lhs: Tensor<I1, J1, B>,
+    rhs: Tensor<I2, J2, B>,
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    TensorDiv<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    TensorDiv<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn forward(
-        lhs: Tensor<B, I1, J1>,
-        rhs: Tensor<B, I2, J2>,
-    ) -> Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output> {
+    fn forward(lhs: Tensor<I1, J1, B>, rhs: Tensor<I2, J2, B>) -> Tensor<I1, J1, B> {
         let result = lhs.data() / rhs.data();
         let node = TensorDiv { lhs, rhs };
         Tensor::new_with_prev(result, Rc::new(RefCell::new(node)))
     }
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    Operation<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>
-    for TensorDiv<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> Operation<I1, J1, B>
+    for TensorDiv<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn backward(
-        &mut self,
-        output: &mut Tensor<
-            B,
-            <I1 as DimCompatible<I2>>::Output,
-            <J1 as DimCompatible<J2>>::Output,
-        >,
-    ) {
+    fn backward(&mut self, output: &mut Tensor<I1, J1, B>) {
         let grad = output.grad().unwrap_or_else(|| Array::ones(output.shape()));
         let rhs_data = self.rhs.data();
         let lhs_data = self.lhs.data();
@@ -455,34 +427,34 @@ where
     }
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    Div<Tensor<B, I2, J2>> for Tensor<B, I1, J1>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    Div<Tensor<I2, J2, B>> for Tensor<I1, J1, B>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    type Output = Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>;
+    type Output = Tensor<I1, J1, B>;
 
-    fn div(self, rhs: Tensor<B, I2, J2>) -> Self::Output {
+    fn div(self, rhs: Tensor<I2, J2, B>) -> Self::Output {
         TensorDiv::forward(self, rhs)
     }
 }
 
 #[derive(Debug, Clone)]
-struct TensorNeg<B: Dimension, I: Dimension, J: Dimension> {
-    tensor: Tensor<B, I, J>,
+struct TensorNeg<I: Dimension, J: Dimension, B: Dimension> {
+    tensor: Tensor<I, J, B>,
 }
 
-impl<B: Dimension, I: Dimension, J: Dimension> TensorNeg<B, I, J> {
-    fn forward(tensor: Tensor<B, I, J>) -> Tensor<B, I, J> {
+impl<I: Dimension, J: Dimension, B: Dimension> TensorNeg<I, J, B> {
+    fn forward(tensor: Tensor<I, J, B>) -> Tensor<I, J, B> {
         let result = -tensor.container.borrow().array.clone();
         let node = TensorNeg { tensor };
         Tensor::new_with_prev(result, Rc::new(RefCell::new(node)))
     }
 }
 
-impl<B: Dimension, I: Dimension, J: Dimension> Operation<B, I, J> for TensorNeg<B, I, J> {
-    fn backward(&mut self, output: &mut Tensor<B, I, J>) {
+impl<I: Dimension, J: Dimension, B: Dimension> Operation<I, J, B> for TensorNeg<I, J, B> {
+    fn backward(&mut self, output: &mut Tensor<I, J, B>) {
         let grad = output
             .grad()
             .unwrap_or_else(|| Array::zeros(output.shape()));
@@ -498,30 +470,27 @@ impl<B: Dimension, I: Dimension, J: Dimension> Operation<B, I, J> for TensorNeg<
     }
 }
 
-impl<B: Dimension, I: Dimension, J: Dimension> Neg for Tensor<B, I, J> {
-    type Output = Tensor<B, I, J>;
+impl<I: Dimension, J: Dimension, B: Dimension> Neg for Tensor<I, J, B> {
+    type Output = Tensor<I, J, B>;
     fn neg(self) -> Self::Output {
         TensorNeg::forward(self)
     }
 }
 
 #[derive(Debug, Clone)]
-struct TensorMax<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension> {
-    lhs: Tensor<B, I1, J1>,
-    rhs: Tensor<B, I2, J2>,
+struct TensorMax<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> {
+    lhs: Tensor<I1, J1, B>,
+    rhs: Tensor<I2, J2, B>,
     take_from_a: Vec<bool>,
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    TensorMax<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    TensorMax<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn forward(
-        lhs: Tensor<B, I1, J1>,
-        rhs: Tensor<B, I2, J2>,
-    ) -> Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output> {
+    fn forward(lhs: Tensor<I1, J1, B>, rhs: Tensor<I2, J2, B>) -> Tensor<I1, J1, B> {
         assert!(lhs.shape() == rhs.shape());
         let (take_from_a, output): (Vec<bool>, Vec<f32>) = lhs
             .data()
@@ -541,21 +510,13 @@ where
     }
 }
 
-impl<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>
-    Operation<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>
-    for TensorMax<B, I1, J1, I2, J2>
+impl<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension> Operation<I1, J1, B>
+    for TensorMax<I1, J1, B, I2, J2>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,
 {
-    fn backward(
-        &mut self,
-        output: &mut Tensor<
-            B,
-            <I1 as DimCompatible<I2>>::Output,
-            <J1 as DimCompatible<J2>>::Output,
-        >,
-    ) {
+    fn backward(&mut self, output: &mut Tensor<I1, J1, B>) {
         let grad = output.grad().expect("should have gradient");
         let (grad_a, grad_b): (Vec<f32>, Vec<f32>) = self
             .take_from_a
@@ -588,10 +549,10 @@ where
     }
 }
 
-pub fn max<B: Dimension, I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>(
-    a: Tensor<B, I1, J1>,
-    b: Tensor<B, I2, J2>,
-) -> Tensor<B, <I1 as DimCompatible<I2>>::Output, <J1 as DimCompatible<J2>>::Output>
+pub fn max<I1: Dimension, J1: Dimension, B: Dimension, I2: Dimension, J2: Dimension>(
+    a: Tensor<I1, J1, B>,
+    b: Tensor<I2, J2, B>,
+) -> Tensor<I1, J1, B>
 where
     I1: DimCompatible<I2>,
     J1: DimCompatible<J2>,

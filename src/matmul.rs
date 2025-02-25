@@ -15,43 +15,45 @@ use crate::tensor::Tensor;
 use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Debug, Clone)]
-pub struct TensorMatMul<B1, B2, I1, J1, I2, J2>
+pub struct TensorMatMul<I1, J1, B1, I2, J2, B2>
 where
-    B1: Dimension,
-    B2: Dimension,
     I1: Dimension,
     J1: Dimension,
+    B1: Dimension,
     I2: Dimension,
     J2: Dimension,
+    B2: Dimension,
 {
-    pub lhs: Tensor<B1, I1, J1>,
-    pub rhs: Tensor<B2, I2, J2>,
+    pub lhs: Tensor<I1, J1, B1>,
+    pub rhs: Tensor<I2, J2, B2>,
 }
 
-impl<B1, B2, I1, J1, I2, J2> TensorMatMul<B1, B2, I1, J1, I2, J2>
+impl<I1, J1, B1, I2, J2, B2> TensorMatMul<I1, J1, B1, I2, J2, B2>
 where
-    B1: Dimension + DimCompatible<B2>,
     I1: Dimension,
     J1: Dimension + DimCompatible<I2>,
+    B1: Dimension + DimCompatible<B2>,
     I2: Dimension,
     J2: Dimension,
+    B2: Dimension,
 {
-    pub fn forward(lhs: Tensor<B1, I1, J1>, rhs: Tensor<B2, I2, J2>) -> Tensor<B1, I1, J2> {
+    pub fn forward(lhs: Tensor<I1, J1, B1>, rhs: Tensor<I2, J2, B2>) -> Tensor<I1, J2, B1> {
         let data = matmul(lhs.clone(), rhs.clone());
         let node = TensorMatMul { lhs, rhs };
         Tensor::new_with_prev(data.data(), Rc::new(RefCell::new(node)))
     }
 }
 
-impl<B1, B2, I1, J1, I2, J2> Operation<B1, I1, J2> for TensorMatMul<B1, B2, I1, J1, I2, J2>
+impl<I1, J1, B1, I2, J2, B2> Operation<I1, J2, B1> for TensorMatMul<I1, J1, B1, I2, J2, B2>
 where
-    B1: Dimension + DimCompatible<B2>,
     I1: Dimension,
     J1: Dimension + DimCompatible<I2>,
+    B1: Dimension + DimCompatible<B2>,
     I2: Dimension,
     J2: Dimension,
+    B2: Dimension,
 {
-    fn backward(&mut self, output: &mut Tensor<B1, I1, J2>) {
+    fn backward(&mut self, output: &mut Tensor<I1, J2, B1>) {
         let grad = output.grad().borrow().clone().unwrap();
 
         let input_lhs = self.lhs.data();
@@ -97,16 +99,17 @@ where
     }
 }
 
-pub(crate) fn matmul<B1, B2, I1, J1, I2, J2>(
-    lhs: Tensor<B1, I1, J1>,
-    rhs: Tensor<B2, I2, J2>,
-) -> Tensor<B1, I1, J2>
+pub(crate) fn matmul<I1, J1, B1, I2, J2, B2>(
+    lhs: Tensor<I1, J1, B1>,
+    rhs: Tensor<I2, J2, B2>,
+) -> Tensor<I1, J2, B1>
 where
-    B1: Dimension + DimCompatible<B2>,
     I1: Dimension,
     J1: Dimension + DimCompatible<I2>,
+    B1: Dimension + DimCompatible<B2>,
     I2: Dimension,
     J2: Dimension,
+    B2: Dimension,
 {
     let shape_lhs = lhs.shape();
     let shape_rhs = rhs.shape();
