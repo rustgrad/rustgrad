@@ -11,30 +11,26 @@ pub struct MLP {
 
 #[derive(Debug)]
 pub struct LinearLayer<I: Dimension, O: Dimension, B: Dimension> {
-    weight: Tensor<I, O, B>,
-    bias: Tensor<Static<1>, O, B>,
-    input_dim: usize,
-    output_dim: usize,
+    weight: Tensor<O, I, B>,
+    bias: Tensor<O, Static<1>, B>,
     non_linearity: bool,
 }
 impl<I: Dimension, O: Dimension, B: Dimension> LinearLayer<I, O, B> {
-    pub fn new(input_dim: usize, output_dim: usize, non_linearity: bool) -> LinearLayer<I, O, B> {
-        let bias = Tensor::<Static<1>, O, B>::new_random(0.0, 0.00);
-        let std = (2.0 / (input_dim as f32)).sqrt();
-        let weight = Tensor::<I, O, B>::new_random(0.0, std);
+    pub fn new(non_linearity: bool) -> LinearLayer<I, O, B> {
+        let bias = Tensor::<O, Static<1>, B>::new_random(0.0, 0.00);
+        let std = (2.0 / (I::default().value() as f32)).sqrt();
+        let weight = Tensor::<O, I, B>::new_random(0.0, std);
         LinearLayer {
             bias,
             weight,
-            input_dim,
-            output_dim,
             non_linearity,
         }
     }
-    pub fn forward(&self, x: Tensor<I, Static<1>, B>) -> Tensor<O, 1, B> {
-        let mut x = x.reshape(Shape::new([1, self.input_dim]));
-        x = x.dot(self.weight.clone()) + self.bias.clone();
+    pub fn forward<const N: usize>(&self, x: Tensor<I, Static<1>, B>) -> Tensor<O, Static<1>, B> {
+        let x = self.weight.clone().dot(x);
+        let mut x = x + self.bias.clone();
         if self.non_linearity {
-            x = max(x, Tensor::ZERO(x.shape()));
+            x = max(x, Tensor::<O, Static<1>, B>::ZERO());
         }
         x
     }

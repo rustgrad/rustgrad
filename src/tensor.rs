@@ -3,6 +3,7 @@ use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::{rand::prelude::*, RandomExt};
 use num_traits::Zero;
 use std::env::consts;
+use std::marker::PhantomData;
 use std::ops::{Div, Index};
 use std::process::Output;
 use std::{
@@ -198,13 +199,10 @@ impl<
         shape.to_vec().into()
     }
 
-    pub fn dot<K: Dimension + Clone>(self, rhs: Tensor<I, J, K>) -> Tensor<I, J, K> {
+    pub fn dot<K: Dimension + Clone>(self, rhs: Tensor<J, K, B>) -> Tensor<I, K, B> {
         unimplemented!()
     }
-    pub fn reshape<const I2: usize, const J2: usize>(
-        self,
-        shape: Shape,
-    ) -> Tensor<I, J, Static<I2>> {
+    pub fn reshape<I2: Dimension, J2: Dimension>(self) -> Tensor<I2, J2, B> {
         TensorReshape::<I, J, B, I2, J2>::forward(self)
     }
 }
@@ -340,29 +338,33 @@ where
 }
 
 #[derive(Debug, Clone)]
-struct TensorReshape<I: Dimension, J: Dimension, B: Dimension, const O1: usize, const O2: usize> {
+struct TensorReshape<I: Dimension, J: Dimension, B: Dimension, I2: Dimension, J2: Dimension> {
     tensor: Tensor<I, J, B>,
     input_shape: Shape,
+    phantom: PhantomData<(I2, J2)>,
 }
 
-impl<I: Dimension, J: Dimension, B: Dimension, const O1: usize, const O2: usize>
-    TensorReshape<I, J, B, O1, O2>
+impl<I: Dimension, J: Dimension, B: Dimension, I2: Dimension, J2: Dimension>
+    TensorReshape<I, J, B, I2, J2>
 {
-    pub fn forward(input: Tensor<I, J, B>) -> Tensor<I, J, Static<O1>> {
-        let shape = Shape { dims: vec![O1, O2] };
+    pub fn forward(input: Tensor<I, J, B>) -> Tensor<I2, J2, B> {
+        let shape = Shape {
+            dims: vec![I2::default().value(), J2::default().value()],
+        };
         let new_data = input.data().into_shape_with_order(shape.dims).unwrap();
         let node = TensorReshape {
             input_shape: input.shape(),
             tensor: input,
+            phantom: PhantomData,
         };
         Tensor::new_with_prev(new_data, Rc::new(RefCell::new(node)))
     }
 }
 
-impl<I: Dimension, J: Dimension, B: Dimension, const O1: usize, const O2: usize>
-    Operation<I, J, Static<O1>> for TensorReshape<I, J, B, O1, O2>
+impl<I: Dimension, J: Dimension, B: Dimension, I2: Dimension, J2: Dimension> Operation<I2, J2, B>
+    for TensorReshape<I, J, B, I2, J2>
 {
-    fn backward(&mut self, output: &mut Tensor<I, J, Static<O1>>) {
+    fn backward(&mut self, output: &mut Tensor<I2, J2, B>) {
         let new_grad = output
             .grad()
             .expect("Missing gradient")
