@@ -69,7 +69,9 @@ pub trait Operation<I: Dimension, J: Dimension, B: Dimension>: std::fmt::Debug {
 pub fn test_fn() {
     let tensor = Tensor::<Static<2>, Static<4>>::ZERO();
     let tensor2 = Tensor::<Static<4>, Static<2>>::ZERO();
-    let tensor3 = Tensor::<Static<3>, Static<2>>::ZERO();
+    let tensor3 = Tensor::<Dynamic, Static<2>>::ZERO();
+    let result = tensor.dot(tensor2);
+    let failing_result = tensor.dot(tensor3);
     const TEST: usize = 3;
 
     let tensor4 = Tensor::<Static<2>, Static<TEST>>::ZERO();
@@ -90,17 +92,12 @@ pub struct Tensor<I: Dimension = Static<1>, J: Dimension = Static<1>, B: Dimensi
 
 impl<const I: usize, const J: usize, const B: usize> Tensor<Static<I>, Static<J>, Static<B>> {}
 
-impl<
-        I: Dimension + 'static + Clone,
-        J: Dimension + 'static + Clone,
-        B: Dimension + 'static + Clone,
-    > Tensor<I, J, B>
-{
+impl<I: Dimension, J: Dimension, B: Dimension> Tensor<I, J, B> {
     pub fn ZERO() -> Tensor<I, J, B> {
         let i = I::default();
         let j = J::default();
         let b = B::default();
-        let dims = vec![b.value(), i.value(), j.value()];
+        let dims = vec![b.value(), j.value(), i.value()];
         let shape = Shape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
@@ -109,7 +106,7 @@ impl<
         let i = I::default();
         let j = J::default();
         let b = B::default();
-        let dims = vec![b.value(), i.value(), j.value()];
+        let dims = vec![b.value(), j.value(), i.value()];
         let shape = Shape { dims };
         let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
         value = value * std + mean;
@@ -199,7 +196,10 @@ impl<
         shape.to_vec().into()
     }
 
-    pub fn dot<K: Dimension + Clone>(self, rhs: Tensor<J, K, B>) -> Tensor<I, K, B> {
+    pub fn dot<I2: Dimension, J2: Dimension>(self, rhs: Tensor<I2, J2, B>) -> Tensor<I, J2, B>
+    where
+        J: DimCompatible<I2>,
+    {
         unimplemented!()
     }
     pub fn reshape<I2: Dimension, J2: Dimension>(self) -> Tensor<I2, J2, B> {

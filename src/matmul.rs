@@ -136,8 +136,8 @@ where
 
         let new_lhs_shape = Shape::new([num_l_batches, m, k]);
         let new_rhs_shape = Shape::new([num_r_batches, k, n]);
-        let lhs_array = reshape(lhs).data();
-        let rhs_array = reshape(rhs).data();
+        let lhs_array = reshape(lhs.data(), new_lhs_shape);
+        let rhs_array = reshape(rhs.data(), new_rhs_shape);
 
         iter_range_par!(0, num_out_batches).for_each(|out_batch| {
             // Here, we:
@@ -169,7 +169,8 @@ where
         Tensor::new(out_array.into_dyn())
     });
 
-    reshape::<I1, J1, I1, J2>(out)
+    let out_data = reshape(out.data(), out_shape);
+    Tensor::new(out_data)
 }
 /// Compute the (broadcasted) output shape of matrix multiplication, along with strides for
 /// the non-matrix dimensions of all arrays.
@@ -254,12 +255,11 @@ fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) 
         Strides::new(o_strides),
     )
 }
-fn reshape<I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>(
-    tensor: Tensor<I1, J1>,
-) -> Tensor<I2, J2> {
-    let shape = tensor.shape();
-    let new_data = tensor.data().into_shape_with_order(shape.dims).unwrap();
-    Tensor::new(new_data)
+fn reshape(
+    tensor: ndarray::Array<f32, ndarray::IxDyn>,
+    shape: Shape,
+) -> ndarray::Array<f32, ndarray::IxDyn> {
+    tensor.into_shape_with_order(shape.dims).unwrap()
 }
 
 #[derive(Debug, PartialEq)]
