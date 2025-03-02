@@ -1,45 +1,50 @@
 use ndarray::s;
+use ndarray::Array;
+use ndarray::IxDyn;
 // use ndarray::Dimension;
 use std::borrow::Borrow;
 
+use crate::dimensions::Dimension;
+use crate::dimensions::Rank2;
+use crate::dimensions::Shape;
 use crate::iter_range_par;
 use crate::run_par;
-use crate::shape::Shape;
+use crate::shape::ArrayShape;
 use crate::sharing::UnsafeSharedRef;
 use crate::tensor::DimCompatible;
-use crate::tensor::Dimension;
+use crate::tensor::MatCompatible;
 use crate::tensor::Operation;
-use crate::tensor::Static;
+use crate::tensor::SwapLastDims;
 use crate::tensor::Tensor;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Debug, Clone)]
-pub struct TensorMatMul<I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension> {
-    pub lhs: Tensor<I1, J1>,
-    pub rhs: Tensor<I2, J2>,
+pub struct TensorMatMul<S1: Shape, S2: Shape> {
+    pub lhs: Tensor<S1>,
+    pub rhs: Tensor<S2>,
 }
 
-impl<I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension> TensorMatMul<I1, J1, I2, J2>
+impl<M: Dimension, N: Dimension, K1: Dimension, K2: Dimension> TensorMatMul<(M, K1), (K2, N)>
 where
-    J1: DimCompatible<I2>,
+    K1: DimCompatible<K2>,
 {
-    pub fn forward(input_a: Tensor<I1, J1>, input_b: Tensor<I2, J2>) -> Tensor<I1, J2> {
-        let data = matmul(input_a.clone(), input_b.clone());
+    pub fn forward(input_a: Tensor<(M, K1)>, input_b: Tensor<(K2, N)>) -> Tensor<(M, N)> {
+        let data = _matmul(input_a.clone(), input_b.clone());
         let node = TensorMatMul {
             lhs: input_a,
             rhs: input_b,
         };
-        Tensor::new_with_prev(data.data(), Rc::new(RefCell::new(node)))
+        Tensor::new_with_prev(data, Rc::new(RefCell::new(node)))
     }
 }
 
-impl<I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension> Operation<I1, J2>
-    for TensorMatMul<I1, J1, I2, J2>
+impl<S1: Shape, S2: Shape> Operation<<S1 as MatCompatible<S2>>::Output> for TensorMatMul<S1, S2>
 where
-    J1: DimCompatible<I2>,
+    S1: MatCompatible<S2>,
+    S2: SwapLastDims,
 {
-    fn backward(&mut self, output: &mut Tensor<I1, J2>) {
+    fn backward(&mut self, output: &mut Tensor<<S1 as MatCompatible<S2>>::Output>) {
         let grad = output.grad().borrow().clone().unwrap();
 
         let input_lhs = self.lhs.data();
@@ -51,9 +56,9 @@ where
         // dL/dB_ij = dL/dC_km*dC_km/dB_ij
         // dL/dB_ij = dL/dC_kj*Aki
         // dL/dB  = A^T @ (dL/dC)
-        let input_lhs_t = Tensor::<I1, J1>::new(input_lhs_t);
-        let grad_tensor = Tensor::<I2, J2>::new(grad.clone());
-        let grad_rhs = matmul(input_lhs_t, grad_tensor);
+        let input_lhs_t = Tensor::<S1>::new(input_lhs_t);
+        let grad_tensor = Tensor::<<S1 as MatCompatible<S2>>::Output>::new(grad.clone());
+        let grad_rhs = _matmul(input_lhs_t, grad_tensor);
 
         // A @ B = C
         // Ckm = Sum_n Akn * Bnm
@@ -66,12 +71,12 @@ where
         // dL/dA_ij = dL/dC_im*Bjm
         // dL/dA = (dL/dC) @ B
         // dL/dA = B @ (dL/dC)^T
-        let grad = Tensor::<I1, J2>::new(grad);
-        let input_rhs_t = Tensor::<J2, I2>::new(input_rhs.reversed_axes());
-        let grad_lhs = matmul(grad, input_rhs_t);
+        let grad = Tensor::<<S1 as MatCompatible<S2>>::Output>::new(grad);
+        let input_rhs_t = Tensor::<<S2 as SwapLastDims>::Output>::new(input_rhs.reversed_axes());
+        let grad_lhs = _matmul(grad, input_rhs_t);
 
-        self.lhs.backward_internal(grad_lhs.data());
-        self.rhs.backward_internal(grad_rhs.data());
+        self.lhs.backward_internal(grad_lhs);
+        self.rhs.backward_internal(grad_rhs);
     }
 
     fn zero_graph(&self) {
@@ -85,13 +90,7 @@ where
     }
 }
 
-pub(crate) fn matmul<I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>(
-    lhs: Tensor<I1, J1>,
-    rhs: Tensor<I2, J2>,
-) -> Tensor<I1, J2>
-where
-    J1: DimCompatible<I2>,
-{
+fn _matmul<S1: Shape, S2: Shape>(lhs: Tensor<S1>, rhs: Tensor<S2>) -> Array<f32, IxDyn> {
     let shape_lhs = lhs.shape();
     let shape_rhs = rhs.shape();
     let ndims = shape_lhs.num_dims();
@@ -115,10 +114,10 @@ where
         let mut out_array = ndarray::Array3::zeros((num_out_batches, m, n));
         let unsafe_shared_out_array = UnsafeSharedRef::new(&mut out_array);
 
-        let new_lhs_shape = Shape::new([num_l_batches, m, k]);
-        let new_rhs_shape = Shape::new([num_r_batches, k, n]);
-        let lhs_array = reshape(lhs).data();
-        let rhs_array = reshape(rhs).data();
+        let new_lhs_shape = ArrayShape::new([num_l_batches, m, k]);
+        let new_rhs_shape = ArrayShape::new([num_r_batches, k, n]);
+        let lhs_array = reshape(lhs.data(), new_lhs_shape);
+        let rhs_array = reshape(rhs.data(), new_rhs_shape);
 
         iter_range_par!(0, num_out_batches).for_each(|out_batch| {
             // Here, we:
@@ -146,11 +145,10 @@ where
                 )
             }
         });
-
-        Tensor::new(out_array.into_dyn())
+        out_array
     });
 
-    reshape::<I1, J1, I1, J2>(out)
+    out.into_shape_with_order(out_shape.dims).unwrap()
 }
 /// Compute the (broadcasted) output shape of matrix multiplication, along with strides for
 /// the non-matrix dimensions of all arrays.
@@ -164,7 +162,7 @@ where
 /// * If the matrix multiplication dimensions (last 2) are incompatible.
 /// * If any other dimension is not the same for both tensors, or equal to 1. (Any dimension where
 ///   one dim is equal to 1 is broadcast.)
-fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) {
+fn output_shape(lsh: &ArrayShape, rsh: &ArrayShape) -> (ArrayShape, Strides, Strides, Strides) {
     let ndims = lsh.num_dims();
     if ndims < 2 {
         panic!("Matrix multiplication requires an array with at least 2 dimensions.");
@@ -235,9 +233,10 @@ fn output_shape(lsh: &Shape, rsh: &Shape) -> (Shape, Strides, Strides, Strides) 
         Strides::new(o_strides),
     )
 }
-fn reshape<I1: Dimension, J1: Dimension, I2: Dimension, J2: Dimension>(
-    tensor: Tensor<I1, J1>,
-) -> Tensor<I2, J2> {
+fn reshape(array: Array<f32, IxDyn>, shape: ArrayShape) -> Array<f32, IxDyn> {
+    array.into_shape_with_order(shape.dims).unwrap()
+}
+fn reshape_tensor<S1: Shape, S2: Shape>(tensor: Tensor<S1>) -> Tensor<S2> {
     let shape = tensor.shape();
     let new_data = tensor.data().into_shape_with_order(shape.dims).unwrap();
     Tensor::new(new_data)
@@ -274,14 +273,15 @@ impl Strides {
 
 #[cfg(test)]
 mod tests {
+    use crate::dimensions::*;
     use ndarray::{array, Array};
 
     use super::*;
     #[test]
     fn test_linear_layer_mm() {
         let test_0 = Tensor::new(Array::ones((1, 5)).into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
-        let test_1 = Tensor::new(Array::ones((5, 5)).into_dyn()); // grad_2 = 2 * test_1
-        let mut test_2: Tensor = test_0.clone().dot(test_1);
+        let test_1 = Tensor::<Rank2<S<5>, S<5>>>::new(Array::ones((5, 5)).into_dyn()); // grad_2 = 2 * test_1
+        let mut test_2: Tensor<Rank2<S<1>, S<5>>> = test_0.clone().dot(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();
@@ -289,24 +289,18 @@ mod tests {
 
     #[test]
     fn test_matmul() {
-        let test_0 = Tensor::<Static<1>, Static<4>>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
-        let test_1 = Tensor::<Static<2>, Static<4>>::new(
+        let test_0 = Tensor::<Rank2<S<1>, S<4>>>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = Tensor::<Rank2<S<2>, S<4>>>::new(
             array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn(),
         ); // grad_2 = 2 * test_1
-        let mut test_2: Tensor = test_0.clone().dot(reshape::<
-            Static<1>,
-            Static<4>,
-            Static<2>,
-            Static<4>,
-        >(test_1));
+        let test_1 = reshape_tensor::<Rank2<S<2>, S<4>>, Rank2<S<2>, S<1>>>(test_1);
+        let mut test_2 = test_0.clone().dot(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();
-        let test_3 = Tensor::new(array![[2.0], [3.0]].into_dyn()); //2X1 // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
-        let test_4 = Tensor::new(array![[1.0, 2.0], [1.0, 2.0]].into_dyn()); // 2X2 grad_2 = 2 * test_1
-        let test_3 = reshape(test_3);
-        let test_4 = reshape(test_4);
-        let mut test_2: Tensor = test_4.clone().dot(test_3);
+        let test_3: Tensor<(S<2>, S<1>)> = Tensor::new(array![[2.0], [3.0]].into_dyn()); //2X1 // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_4 = Tensor::<(S<2>, S<2>)>::new(array![[1.0, 2.0], [1.0, 2.0]].into_dyn()); // 2X2 grad_2 = 2 * test_1
+        let mut test_2: Tensor<Rank2<S<2>, S<1>>> = test_4.clone().dot(test_3);
         print!("forward passed");
         test_2.backward();
 

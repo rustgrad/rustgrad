@@ -1,6 +1,7 @@
 pub mod matmul;
-pub mod nn;
-pub mod optimiser;
+// pub mod nn;
+// pub mod optimiser;
+pub mod dimensions;
 pub mod parallel;
 pub mod shape;
 pub mod sharing;

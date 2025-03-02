@@ -1,4 +1,4 @@
-use crate::shape::Shape;
+use crate::shape::ArrayShape;
 use crate::tensor::max;
 use crate::tensor::Tensor;
 
@@ -17,9 +17,9 @@ pub struct LinearLayer {
 }
 impl LinearLayer {
     pub fn new(input_dim: usize, output_dim: usize, non_linearity: bool) -> LinearLayer {
-        let bias = Tensor::new_random(Shape::new([1, output_dim]), 0.0, 0.00);
+        let bias = Tensor::new_random(ArrayShape::new([1, output_dim]), 0.0, 0.00);
         let std = (2.0 / (input_dim as f32)).sqrt();
-        let weight = Tensor::new_random(Shape::new([input_dim, output_dim]), 0.0, std);
+        let weight = Tensor::new_random(ArrayShape::new([input_dim, output_dim]), 0.0, std);
         LinearLayer {
             bias,
             weight,
@@ -29,10 +29,10 @@ impl LinearLayer {
         }
     }
     pub fn forward(&self, x: Tensor) -> Tensor {
-        let mut x = x.reshape(Shape::new([1, self.input_dim]));
+        let mut x = x.reshape(ArrayShape::new([1, self.input_dim]));
         x = x.dot(self.weight.clone()) + self.bias.clone();
         if self.non_linearity {
-            x = max(x, Tensor::ZERO(Shape::new([1, self.output_dim])));
+            x = max(x, Tensor::ZERO(ArrayShape::new([1, self.output_dim])));
         }
         x
     }

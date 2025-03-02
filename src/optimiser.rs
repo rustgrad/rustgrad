@@ -29,7 +29,7 @@ impl SGDOptimizer {
 mod tests {
     use crate::{
         nn::{LinearLayer, MLP},
-        shape::Shape,
+        shape::ArrayShape,
     };
     use ndarray::{array, Array};
     use num_traits::Pow;
@@ -46,7 +46,7 @@ mod tests {
         let mut accumulated_loss = 0.0;
         for i in 0..epochs {
             optimiser.zero_grad();
-            let input = Tensor::new_random(Shape::new([2]), 0.0, 1.0);
+            let input = Tensor::new_random(ArrayShape::new([2]), 0.0, 1.0);
             let forwarded = mlp.forward(input.clone());
             let expected_output = input.data();
             let expected_output = expected_output[0] - expected_output[1];

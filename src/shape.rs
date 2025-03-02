@@ -4,12 +4,12 @@ use ndarray::{IntoDimension, IxDyn};
 
 /// Shape of a tensor.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Shape {
+pub struct ArrayShape {
     /// The dimensions of the tensor.
     pub dims: Vec<usize>,
 }
 
-impl Shape {
+impl ArrayShape {
     /// Returns the total number of elements of a tensor having this shape
     pub fn num_elements(&self) -> usize {
         self.dims.iter().product()
@@ -37,13 +37,13 @@ impl Shape {
     }
 }
 
-impl<const D: usize> From<[usize; D]> for Shape {
+impl<const D: usize> From<[usize; D]> for ArrayShape {
     fn from(dims: [usize; D]) -> Self {
-        Shape::new(dims)
+        ArrayShape::new(dims)
     }
 }
 
-impl From<Vec<i64>> for Shape {
+impl From<Vec<i64>> for ArrayShape {
     fn from(shape: Vec<i64>) -> Self {
         Self {
             dims: shape.into_iter().map(|d| d as usize).collect(),
@@ -51,7 +51,7 @@ impl From<Vec<i64>> for Shape {
     }
 }
 
-impl From<Vec<u64>> for Shape {
+impl From<Vec<u64>> for ArrayShape {
     fn from(shape: Vec<u64>) -> Self {
         Self {
             dims: shape.into_iter().map(|d| d as usize).collect(),
@@ -59,13 +59,13 @@ impl From<Vec<u64>> for Shape {
     }
 }
 
-impl From<Vec<usize>> for Shape {
+impl From<Vec<usize>> for ArrayShape {
     fn from(shape: Vec<usize>) -> Self {
         Self { dims: shape }
     }
 }
 
-impl From<&Vec<usize>> for Shape {
+impl From<&Vec<usize>> for ArrayShape {
     fn from(shape: &Vec<usize>) -> Self {
         Self {
             dims: shape.clone(),
@@ -73,13 +73,13 @@ impl From<&Vec<usize>> for Shape {
     }
 }
 
-impl From<Shape> for Vec<usize> {
-    fn from(shape: Shape) -> Self {
+impl From<ArrayShape> for Vec<usize> {
+    fn from(shape: ArrayShape) -> Self {
         shape.dims
     }
 }
 
-impl IntoDimension for Shape {
+impl IntoDimension for ArrayShape {
     type Dim = IxDyn;
 
     fn into_dimension(self) -> Self::Dim {
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn num_elements() {
         let dims = [2, 3, 4, 5];
-        let shape = Shape::new(dims);
+        let shape = ArrayShape::new(dims);
         assert_eq!(120, shape.num_elements());
     }
 }
