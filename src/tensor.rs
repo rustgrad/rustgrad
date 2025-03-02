@@ -1,3 +1,4 @@
+use crate::matmul::MatMul;
 use ndarray::{Array, Dim, IxDyn};
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::{rand::prelude::*, RandomExt};
@@ -29,7 +30,7 @@ pub fn test_fn() {
     const TEST: usize = 3;
 
     let tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
-    let result_a = tensor.dot(tensor2);
+    let result_a = tensor.matmul(tensor2);
     let tensor = Tensor::<Rank1<S<4>>>::ZERO();
     let tensor2 = Tensor::<Rank1<S<4>>>::ZERO();
     let result_b = tensor2 + tensor;
@@ -47,31 +48,6 @@ impl DataContainer {
     fn add_value(&mut self, value: Array<f32, IxDyn>) {
         self.array = self.array.clone() + value;
     }
-}
-
-pub trait MatCompatible<Rhs: Shape> {
-    type Output: Shape;
-}
-
-impl<N: Dimension, M: Dimension, K1: Dimension, K2: Dimension> MatCompatible<(K2, N)> for (M, K1)
-where
-    K1: DimCompatible<K2>,
-{
-    type Output = (M, N);
-}
-impl<O: Dimension, N: Dimension, M: Dimension, K1: Dimension, K2: Dimension>
-    MatCompatible<(O, M, K1)> for (O, K2, N)
-where
-    K1: DimCompatible<K2>,
-{
-    type Output = (O, M, N);
-}
-impl<P: Dimension, O: Dimension, N: Dimension, M: Dimension, K1: Dimension, K2: Dimension>
-    MatCompatible<(P, O, M, K1)> for (P, O, K2, N)
-where
-    K1: DimCompatible<K2>,
-{
-    type Output = (P, O, M, N);
 }
 
 pub trait SwapLastDims {
@@ -198,11 +174,14 @@ impl<S: Shape> Tensor<S> {
         shape.to_vec().into()
     }
 
-    pub fn dot<K: Shape>(self, rhs: Tensor<K>) -> Tensor<S> {
-        unimplemented!()
-    }
     pub fn reshape<K: Shape>(self, shape: ArrayShape) -> Tensor<K> {
         TensorReshape::<S, K>::forward(self)
+    }
+
+    pub fn reshape_no_grad<K: Shape>(self) -> Tensor<K> {
+        let shape = self.shape();
+        let new_data = self.data().into_shape_with_order(shape.dims).unwrap();
+        Tensor::new(new_data)
     }
 }
 
@@ -259,9 +238,10 @@ where
         <A4 as DimCompatible<B4>>::Output,
     >;
 }
-// impl<I: Dimension, J: Dimension> DimCompatible<J> for I {
-//     type Output = I;
-// }
+
+impl<const N: usize> DimCompatible<S<N>> for S<N> {
+    type Output = S<N>;
+}
 
 impl<const N: usize> DimCompatible<Dynamic> for S<N> {
     type Output = Dynamic;
@@ -598,7 +578,7 @@ mod tests {
         const TEST: usize = 3;
 
         let tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
-        let result_a = tensor.dot(tensor2);
+        let result_a = tensor.matmul(tensor2);
         let tensor = Tensor::<Rank1<S<4>>>::ZERO();
         let tensor2 = Tensor::<Rank1<S<4>>>::ZERO();
         let result_b = tensor2 + tensor;

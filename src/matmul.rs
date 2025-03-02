@@ -1,42 +1,109 @@
 use ndarray::s;
 use ndarray::Array;
 use ndarray::IxDyn;
-// use ndarray::Dimension;
 use std::borrow::Borrow;
 
 use crate::dimensions::Dimension;
 use crate::dimensions::Rank2;
+use crate::dimensions::Rank3;
+use crate::dimensions::Rank4;
 use crate::dimensions::Shape;
 use crate::iter_range_par;
 use crate::run_par;
 use crate::shape::ArrayShape;
 use crate::sharing::UnsafeSharedRef;
 use crate::tensor::DimCompatible;
-use crate::tensor::MatCompatible;
 use crate::tensor::Operation;
 use crate::tensor::SwapLastDims;
 use crate::tensor::Tensor;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+pub trait MatCompatible<Rhs: Shape> {
+    type Output: Shape;
+}
+
+impl<N: Dimension, M: Dimension, K1: Dimension, K2: Dimension> MatCompatible<(K2, N)> for (M, K1)
+where
+    K1: DimCompatible<K2>,
+{
+    type Output = (M, N);
+}
+impl<O: Dimension, N: Dimension, M: Dimension, K1: Dimension, K2: Dimension>
+    MatCompatible<(O, K2, N)> for (O, M, K1)
+where
+    K1: DimCompatible<K2>,
+{
+    type Output = (O, M, N);
+}
+impl<P: Dimension, O: Dimension, N: Dimension, M: Dimension, K1: Dimension, K2: Dimension>
+    MatCompatible<(P, O, K2, N)> for (P, O, M, K1)
+where
+    K1: DimCompatible<K2>,
+{
+    type Output = (P, O, M, N);
+}
+
+pub trait MatMul<S1: Shape, S2: Shape>
+where
+    S1: MatCompatible<S2>,
+{
+    fn matmul(&self, rhs: Tensor<S2>) -> Tensor<<S1 as MatCompatible<S2>>::Output>;
+}
+impl<M: Dimension, N: Dimension, K1: Dimension, K2: Dimension> MatMul<Rank2<M, K1>, Rank2<K2, N>>
+    for Tensor<Rank2<M, K1>>
+where
+    K1: DimCompatible<K2>,
+{
+    fn matmul(&self, rhs: Tensor<Rank2<K2, N>>) -> Tensor<Rank2<M, N>> {
+        let node = TensorMatMul {
+            lhs: self.clone(),
+            rhs: rhs.clone(),
+        };
+        Tensor::new_with_prev(
+            _matmul(self.clone(), rhs.clone()),
+            Rc::new(RefCell::new(node)),
+        )
+    }
+}
+
+impl<O: Dimension, M: Dimension, N: Dimension, K1: Dimension, K2: Dimension>
+    MatMul<Rank3<O, M, K1>, Rank3<O, K2, N>> for Tensor<Rank3<O, M, K1>>
+where
+    K1: DimCompatible<K2>,
+{
+    fn matmul(&self, rhs: Tensor<Rank3<O, K2, N>>) -> Tensor<Rank3<O, M, N>> {
+        let node = TensorMatMul {
+            lhs: self.clone(),
+            rhs: rhs.clone(),
+        };
+        Tensor::new_with_prev(
+            _matmul(self.clone(), rhs.clone()),
+            Rc::new(RefCell::new(node)),
+        )
+    }
+}
+impl<P: Dimension, O: Dimension, M: Dimension, N: Dimension, K1: Dimension, K2: Dimension>
+    MatMul<Rank4<P, O, M, K1>, Rank4<P, O, K2, N>> for Tensor<Rank4<P, O, M, K1>>
+where
+    K1: DimCompatible<K2>,
+{
+    fn matmul(&self, rhs: Tensor<Rank4<P, O, K2, N>>) -> Tensor<Rank4<P, O, M, N>> {
+        let node = TensorMatMul {
+            lhs: self.clone(),
+            rhs: rhs.clone(),
+        };
+        Tensor::new_with_prev(
+            _matmul(self.clone(), rhs.clone()),
+            Rc::new(RefCell::new(node)),
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TensorMatMul<S1: Shape, S2: Shape> {
     pub lhs: Tensor<S1>,
     pub rhs: Tensor<S2>,
-}
-
-impl<M: Dimension, N: Dimension, K1: Dimension, K2: Dimension> TensorMatMul<(M, K1), (K2, N)>
-where
-    K1: DimCompatible<K2>,
-{
-    pub fn forward(input_a: Tensor<(M, K1)>, input_b: Tensor<(K2, N)>) -> Tensor<(M, N)> {
-        let data = _matmul(input_a.clone(), input_b.clone());
-        let node = TensorMatMul {
-            lhs: input_a,
-            rhs: input_b,
-        };
-        Tensor::new_with_prev(data, Rc::new(RefCell::new(node)))
-    }
 }
 
 impl<S1: Shape, S2: Shape> Operation<<S1 as MatCompatible<S2>>::Output> for TensorMatMul<S1, S2>
@@ -236,11 +303,6 @@ fn output_shape(lsh: &ArrayShape, rsh: &ArrayShape) -> (ArrayShape, Strides, Str
 fn reshape(array: Array<f32, IxDyn>, shape: ArrayShape) -> Array<f32, IxDyn> {
     array.into_shape_with_order(shape.dims).unwrap()
 }
-fn reshape_tensor<S1: Shape, S2: Shape>(tensor: Tensor<S1>) -> Tensor<S2> {
-    let shape = tensor.shape();
-    let new_data = tensor.data().into_shape_with_order(shape.dims).unwrap();
-    Tensor::new(new_data)
-}
 
 #[derive(Debug, PartialEq)]
 struct Strides {
@@ -279,9 +341,9 @@ mod tests {
     use super::*;
     #[test]
     fn test_linear_layer_mm() {
-        let test_0 = Tensor::new(Array::ones((1, 5)).into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
-        let test_1 = Tensor::<Rank2<S<5>, S<5>>>::new(Array::ones((5, 5)).into_dyn()); // grad_2 = 2 * test_1
-        let mut test_2: Tensor<Rank2<S<1>, S<5>>> = test_0.clone().dot(test_1);
+        let test_0 = Tensor::<(S<1>, S<5>)>::new(Array::ones((1, 5)).into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = Tensor::<(S<5>, S<5>)>::new(Array::ones((5, 5)).into_dyn()); // grad_2 = 2 * test_1
+        let mut test_2: Tensor<Rank2<S<1>, S<5>>> = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();
@@ -289,18 +351,18 @@ mod tests {
 
     #[test]
     fn test_matmul() {
-        let test_0 = Tensor::<Rank2<S<1>, S<4>>>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
-        let test_1 = Tensor::<Rank2<S<2>, S<4>>>::new(
+        let test_0 = Tensor::<(S<1>, S<4>)>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = Tensor::<(S<2>, S<4>)>::new(
             array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn(),
         ); // grad_2 = 2 * test_1
-        let test_1 = reshape_tensor::<Rank2<S<2>, S<4>>, Rank2<S<2>, S<1>>>(test_1);
-        let mut test_2 = test_0.clone().dot(test_1);
+        let test_1 = test_1.reshape_no_grad::<(S<4>, S<2>)>();
+        let mut test_2 = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();
-        let test_3: Tensor<(S<2>, S<1>)> = Tensor::new(array![[2.0], [3.0]].into_dyn()); //2X1 // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_3: Tensor<(S<2>, S<2>)> = Tensor::new(array![[2.0], [3.0]].into_dyn()); //2X1 // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
         let test_4 = Tensor::<(S<2>, S<2>)>::new(array![[1.0, 2.0], [1.0, 2.0]].into_dyn()); // 2X2 grad_2 = 2 * test_1
-        let mut test_2: Tensor<Rank2<S<2>, S<1>>> = test_4.clone().dot(test_3);
+        let mut test_2 = test_4.clone().matmul(test_3);
         print!("forward passed");
         test_2.backward();
 
