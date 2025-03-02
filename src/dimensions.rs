@@ -51,6 +51,17 @@ pub trait Shape: Debug + Default + Clone + 'static {
     // const Dims: [Dimension; NUM_DIMS];
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DynamicShape;
+impl Shape for DynamicShape {
+    fn shape(&self) -> ArrayShape {
+        ArrayShape {
+            dims: vec![usize::MAX],
+        }
+    }
+    const NUM_DIMS: usize = usize::MAX;
+}
+
 /// Represents a single dimension of a multi dimensional [Shape]
 pub trait Dimension:
     'static + Copy + Clone + std::fmt::Debug + Send + Sync + Eq + PartialEq + Default

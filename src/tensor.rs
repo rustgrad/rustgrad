@@ -14,7 +14,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::dimensions::{Dimension, Dynamic, Rank1, Rank2, Rank3, Rank4, Shape, S};
+use crate::dimensions::{Dimension, Dynamic, DynamicShape, Rank1, Rank2, Rank3, Rank4, Shape, S};
 use crate::shape::ArrayShape;
 // use crate::{matmul::TensorMatMul, shape::ArrayShape};
 
@@ -22,6 +22,7 @@ pub trait Operation<S: Shape>: std::fmt::Debug {
     fn backward(&mut self, output: &mut Tensor<S>);
     fn zero_graph(&self);
     fn build_graph(&self);
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>>;
 }
 pub fn test_fn() {
     let tensor = Tensor::<Rank2<S<2>, S<4>>>::ZERO();
@@ -53,7 +54,9 @@ impl DataContainer {
 pub trait SwapLastDims {
     type Output: Shape;
 }
-
+impl SwapLastDims for DynamicShape {
+    type Output = DynamicShape;
+}
 impl<M: Dimension, N: Dimension> SwapLastDims for Rank2<M, N> {
     type Output = Rank2<N, M>;
 }
@@ -99,6 +102,16 @@ impl<S: Shape> Tensor<S> {
         Tensor::<S> {
             container: Rc::new(RefCell::new(data)),
             prev_op: None,
+        }
+    }
+    pub fn clone_into_dynamic(&self) -> Tensor<DynamicShape> {
+        Tensor {
+            container: Rc::new(RefCell::new(DataContainer {
+                array: self.data().into_dyn(),
+                grad: self.grad(),
+                num_consumers: self.container.borrow().num_consumers,
+            })),
+            prev_op: self.prev_op.map(|op| op.borrow().clone_into_dynamic()),
         }
     }
     pub fn new_with_prev(
@@ -191,6 +204,9 @@ pub trait DimCompatible<Rhs: Dimension> {
 pub trait ShapeCompatible<Rhs: Shape> {
     type Output: Shape;
 }
+impl ShapeCompatible<DynamicShape> for DynamicShape {
+    type Output = DynamicShape;
+}
 impl<I: Dimension> ShapeCompatible<Rank1<I>> for Rank1<I> {
     type Output = Rank1<I>;
 }
@@ -239,8 +255,8 @@ where
     >;
 }
 
-impl<const N: usize> DimCompatible<S<N>> for S<N> {
-    type Output = S<N>;
+impl<D: Dimension> DimCompatible<D> for D {
+    type Output = D;
 }
 
 impl<const N: usize> DimCompatible<Dynamic> for S<N> {
@@ -289,6 +305,12 @@ where
     fn build_graph(&self) {
         self.lhs.build_graph();
         self.rhs.build_graph();
+    }
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+        Rc::new(RefCell::new(TensorAdd::<DynamicShape, DynamicShape> {
+            lhs: self.lhs.clone_into_dynamic(),
+            rhs: self.rhs.clone_into_dynamic(),
+        }))
     }
 }
 
@@ -345,6 +367,12 @@ where
         self.lhs.build_graph();
         self.rhs.build_graph();
     }
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+        Rc::new(RefCell::new(TensorMul::<DynamicShape, DynamicShape> {
+            lhs: self.lhs.clone_into_dynamic(),
+            rhs: self.rhs.clone_into_dynamic(),
+        }))
+    }
 }
 
 impl<S1: Shape, S2: Shape> Mul<Tensor<S2>> for Tensor<S1>
@@ -394,6 +422,13 @@ impl<S: Shape, K: Shape> Operation<K> for TensorReshape<S, K> {
     fn build_graph(&self) {
         self.tensor.build_graph();
     }
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+        Rc::new(RefCell::new(TensorReshape::<DynamicShape, DynamicShape> {
+            tensor: self.tensor.clone_into_dynamic(),
+            input_shape: self.input_shape.clone(),
+            ph: PhantomData,
+        }))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -437,6 +472,12 @@ where
         self.lhs.build_graph();
         self.rhs.build_graph();
     }
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+        Rc::new(RefCell::new(TensorDiv::<DynamicShape, DynamicShape> {
+            lhs: self.lhs.clone_into_dynamic(),
+            rhs: self.rhs.clone_into_dynamic(),
+        }))
+    }
 }
 
 impl<S1: Shape, S2: Shape> Div<Tensor<S2>> for Tensor<S1>
@@ -476,6 +517,11 @@ impl<S: Shape> Operation<S> for TensorNeg<S> {
 
     fn build_graph(&self) {
         self.tensor.build_graph();
+    }
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+        Rc::new(RefCell::new(TensorNeg::<DynamicShape> {
+            tensor: self.tensor.clone_into_dynamic(),
+        }))
     }
 }
 
@@ -551,6 +597,13 @@ where
     fn build_graph(&self) {
         self.lhs.build_graph();
         self.rhs.build_graph();
+    }
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+        Rc::new(RefCell::new(TensorMax::<DynamicShape, DynamicShape> {
+            lhs: self.lhs.clone_into_dynamic(),
+            rhs: self.rhs.clone_into_dynamic(),
+            take_from_a: self.take_from_a.clone(),
+        }))
     }
 }
 

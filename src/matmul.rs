@@ -4,6 +4,7 @@ use ndarray::IxDyn;
 use std::borrow::Borrow;
 
 use crate::dimensions::Dimension;
+use crate::dimensions::DynamicShape;
 use crate::dimensions::Rank2;
 use crate::dimensions::Rank3;
 use crate::dimensions::Rank4;
@@ -42,6 +43,9 @@ where
     K1: DimCompatible<K2>,
 {
     type Output = (P, O, M, N);
+}
+impl MatCompatible<DynamicShape> for DynamicShape {
+    type Output = DynamicShape;
 }
 
 pub trait MatMul<S1: Shape, S2: Shape>
@@ -154,6 +158,13 @@ where
     fn build_graph(&self) {
         self.lhs.build_graph();
         self.rhs.build_graph();
+    }
+
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+        Rc::new(RefCell::new(TensorMatMul::<DynamicShape, DynamicShape> {
+            lhs: self.lhs.clone_into_dynamic(),
+            rhs: self.rhs.clone_into_dynamic(),
+        }))
     }
 }
 
@@ -344,6 +355,16 @@ mod tests {
         let test_0 = Tensor::<(S<1>, S<5>)>::new(Array::ones((1, 5)).into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
         let test_1 = Tensor::<(S<5>, S<5>)>::new(Array::ones((5, 5)).into_dyn()); // grad_2 = 2 * test_1
         let mut test_2: Tensor<Rank2<S<1>, S<5>>> = test_0.clone().matmul(test_1);
+        println!("forward: {:?}", test_2);
+        println!("_____________________________");
+        test_2.backward();
+    }
+    fn test<D_IN: Dimension, D_OUT: Dimension, K: Dimension>() {
+        let test_0 = Tensor::<(K, D_IN)>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = Tensor::<(D_IN, D_OUT)>::new(
+            array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn(),
+        ); // grad_2 = 2 * test_1
+        let mut test_2: Tensor<(K, D_OUT)> = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();

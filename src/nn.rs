@@ -1,25 +1,35 @@
+use crate::dimensions::Dimension;
+use crate::dimensions::DynamicShape;
+use crate::dimensions::Shape;
+use crate::matmul::MatMul;
 use crate::shape::ArrayShape;
 use crate::tensor::max;
 use crate::tensor::Tensor;
-
 #[derive(Debug)]
-pub struct MLP {
-    layers: Vec<LinearLayer>,
+pub struct MLP<D_IN: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYERS: usize>
+{
+    first_layer: LinearLayer<D_IN, HIDDEN_DIM>,
+    hidden_layers: [LinearLayer<HIDDEN_DIM, HIDDEN_DIM>; HIDDEN_LAYERS],
+    last_layer: LinearLayer<HIDDEN_DIM, D_OUT>,
 }
 
 #[derive(Debug)]
-pub struct LinearLayer {
-    weight: Tensor,
-    bias: Tensor,
+pub struct LinearLayer<D_IN: Dimension, D_OUT: Dimension> {
+    weight: Tensor<(D_IN, D_OUT)>,
+    bias: Tensor<(D_OUT,)>,
     input_dim: usize,
     output_dim: usize,
     non_linearity: bool,
 }
-impl LinearLayer {
-    pub fn new(input_dim: usize, output_dim: usize, non_linearity: bool) -> LinearLayer {
-        let bias = Tensor::new_random(ArrayShape::new([1, output_dim]), 0.0, 0.00);
+impl<D_IN: Dimension, D_OUT: Dimension> LinearLayer<D_IN, D_OUT> {
+    pub fn new(
+        input_dim: usize,
+        output_dim: usize,
+        non_linearity: bool,
+    ) -> LinearLayer<D_IN, D_OUT> {
+        let bias = Tensor::new_random(0.0, 0.00);
         let std = (2.0 / (input_dim as f32)).sqrt();
-        let weight = Tensor::new_random(ArrayShape::new([input_dim, output_dim]), 0.0, std);
+        let weight = Tensor::new_random(0.0, std);
         LinearLayer {
             bias,
             weight,
@@ -28,43 +38,54 @@ impl LinearLayer {
             non_linearity,
         }
     }
-    pub fn forward(&self, x: Tensor) -> Tensor {
-        let mut x = x.reshape(ArrayShape::new([1, self.input_dim]));
-        x = x.dot(self.weight.clone()) + self.bias.clone();
+    pub fn forward<K: Dimension>(&self, x: Tensor<(K, D_IN)>) -> Tensor<(K, D_OUT)> {
+        let x: Tensor<(K, D_OUT)> = x.matmul(self.weight.clone());
+        let x = x + self.bias.clone();
         if self.non_linearity {
-            x = max(x, Tensor::ZERO(ArrayShape::new([1, self.output_dim])));
+            x = max(x, Tensor::ZERO::<(K, D_OUT)>());
         }
         x
     }
-    pub fn parameters(&self) -> Vec<Tensor> {
-        vec![self.weight.clone(), self.bias.clone()]
+    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+        vec![
+            self.weight.clone_into_dynamic(),
+            self.bias.clone_into_dynamic(),
+        ]
     }
 }
 
-impl MLP {
-    pub fn new(depth: usize, input_dim: usize, hidden_dim: usize, output_dim: usize) -> MLP {
-        if depth == 1 {
-            return MLP {
-                layers: vec![LinearLayer::new(input_dim, output_dim, false)],
-            };
-        }
-
-        let mut layers = vec![LinearLayer::new(input_dim, hidden_dim, true)];
-        for _ in 0..depth - 2 {
-            layers.push(LinearLayer::new(hidden_dim, hidden_dim, true));
-        }
-        layers.push(LinearLayer::new(hidden_dim, output_dim, false));
-        MLP { layers }
+impl<D_IN: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYERS: usize>
+    MLP<D_IN, D_OUT, HIDDEN_DIM, HIDDEN_LAYERS>
+{
+    pub fn new() -> MLP<D_IN, D_OUT, HIDDEN_DIM, HIDDEN_LAYERS> {
+        return MLP {
+            first_layer: LinearLayer::new(
+                D_IN::default().size(),
+                HIDDEN_DIM::default().size(),
+                true,
+            ),
+            hidden_layers: [LinearLayer::new(
+                HIDDEN_DIM::default().size(),
+                HIDDEN_DIM::default().size(),
+                true,
+            )],
+            last_layer: LinearLayer::new(
+                HIDDEN_DIM::default().size(),
+                D_OUT::default().size(),
+                false,
+            ),
+        };
     }
-    pub fn forward(&self, mut x: Tensor) -> Tensor {
-        for layer in self.layers.iter() {
+    pub fn forward<K: Dimension>(&self, mut x: Tensor<(K, D_IN)>) -> Tensor<(K, D_OUT)> {
+        x = self.first_layer.forward(x);
+        for layer in self.hidden_layers.iter() {
             x = layer.forward(x);
         }
-        x
+        self.last_layer.forward(x)
     }
-    pub fn parameters(&self) -> Vec<Tensor> {
+    pub fn parameters(&self) -> Vec<Box<Tensor<impl Shape>>> {
         let mut params = vec![];
-        for layer in self.layers.iter() {
+        for layer in self.first_layer.parameters() {
             params.extend(layer.parameters())
         }
         params
