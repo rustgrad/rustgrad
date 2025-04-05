@@ -121,6 +121,20 @@ impl<const N: usize> core::ops::Add<usize> for S<N> {
         N + rhs.size()
     }
 }
+pub type ArrayShape0<M: Dimension> = [M; 0];
+pub type ArrayShape1<M: Dimension> = [M; 1];
+pub type ArrayShape2<M: Dimension> = [M; 2];
+pub type ArrayShape3<M: Dimension> = [M; 3];
+pub type ArrayShape4<M: Dimension> = [M; 3];
+
+impl<M: Dimension> Shape for ArrayShape1<M> {
+    fn shape(&self) -> ArrayShape {
+        ArrayShape {
+            dims: self.map(|m| m.size()).to_vec(),
+        }
+    }
+    const NUM_DIMS: usize = 1;
+}
 
 /// Compile time known shape with 0 dimensions
 pub type Rank0 = ();
@@ -135,6 +149,12 @@ pub type Rank4<M: Dimension, N: Dimension, O: Dimension, P: Dimension> = (M, N, 
 /// Compile time known shape with 5 dimensions
 pub type Rank5<M: Dimension, N: Dimension, O: Dimension, P: Dimension, Q: Dimension> =
     (M, N, O, P, Q);
+impl Shape for Rank0 {
+    fn shape(&self) -> ArrayShape {
+        ArrayShape { dims: vec![] }
+    }
+    const NUM_DIMS: usize = 0;
+}
 
 impl<M: Dimension> Shape for Rank1<M> {
     fn shape(&self) -> ArrayShape {
