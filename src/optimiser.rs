@@ -1,11 +1,11 @@
-use crate::tensor::Tensor;
+use crate::{dimensions::DynamicShape, tensor::Tensor};
 
 struct SGDOptimizer {
     lr: f32,
-    parameters: Vec<Tensor>,
+    parameters: Vec<Tensor<DynamicShape>>,
 }
 impl SGDOptimizer {
-    pub fn new(lr: f32, parameters: Vec<Tensor>) -> SGDOptimizer {
+    pub fn new(lr: f32, parameters: Vec<Tensor<DynamicShape>>) -> SGDOptimizer {
         SGDOptimizer { lr, parameters }
     }
     pub fn step(&self) {
@@ -28,6 +28,7 @@ impl SGDOptimizer {
 #[cfg(test)]
 mod tests {
     use crate::{
+        dimensions::S,
         nn::{LinearLayer, MLP},
         shape::ArrayShape,
     };
@@ -38,7 +39,7 @@ mod tests {
 
     #[test]
     fn test_optimizer() {
-        let mlp = MLP::new(3, 2, 100, 1);
+        let mlp: MLP<S<3>, S<2>, S<100>, 1> = MLP::new();
         println!("MLP {:?}", mlp);
         // let layer = LinearLayer::new(2, 1);
         let mut optimiser = SGDOptimizer::new(0.1 as f32, mlp.parameters());
@@ -46,11 +47,11 @@ mod tests {
         let mut accumulated_loss = 0.0;
         for i in 0..epochs {
             optimiser.zero_grad();
-            let input = Tensor::new_random(ArrayShape::new([2]), 0.0, 1.0);
+            let input: Tensor<(S<4>, S<3>)> = Tensor::new_random(0.0, 1.0);
             let forwarded = mlp.forward(input.clone());
             let expected_output = input.data();
             let expected_output = expected_output[0] - expected_output[1];
-            let expected_output = Tensor::new(
+            let expected_output: Tensor<(S<4>, S<2>)> = Tensor::new(
                 Array::from_vec(vec![expected_output])
                     .into_shape_clone(forwarded.shape())
                     .unwrap(),
