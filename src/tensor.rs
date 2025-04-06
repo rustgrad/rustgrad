@@ -40,7 +40,7 @@ pub fn test_fn() {
 
 #[derive(Default, Debug, Clone)]
 pub struct DataContainer {
-    array: Array<f32, IxDyn>,
+    pub array: Array<f32, IxDyn>,
     pub grad: Option<Array<f32, IxDyn>>,
 
     pub num_consumers: usize,
@@ -74,7 +74,7 @@ impl<P: Dimension, O: Dimension, N: Dimension, M: Dimension> SwapLastDims for Ra
 #[derive(Debug, Clone)]
 pub struct Tensor<S: Shape> {
     pub container: Rc<RefCell<DataContainer>>,
-    prev_op: Option<Rc<RefCell<dyn Operation<S>>>>,
+    pub prev_op: Option<Rc<RefCell<dyn Operation<S>>>>,
 }
 
 impl<S: Shape> Tensor<S> {
@@ -83,7 +83,7 @@ impl<S: Shape> Tensor<S> {
         let shape = ArrayShape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
-    pub fn new_random<const D: usize>(mean: f32, std: f32) -> Tensor<S> {
+    pub fn new_random(mean: f32, std: f32) -> Tensor<S> {
         let mut dims = S::default().shape().dims.clone();
         let shape = ArrayShape { dims };
         let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
@@ -111,7 +111,10 @@ impl<S: Shape> Tensor<S> {
                 grad: self.grad(),
                 num_consumers: self.container.borrow().num_consumers,
             })),
-            prev_op: self.prev_op.map(|op| op.borrow().clone_into_dynamic()),
+            prev_op: self
+                .prev_op
+                .as_ref()
+                .map(|op| op.borrow().clone_into_dynamic()),
         }
     }
     pub fn new_with_prev(
@@ -265,64 +268,6 @@ impl<const N: usize> DimCompatible<Dynamic> for S<N> {
 
 impl<const N: usize> DimCompatible<S<N>> for Dynamic {
     type Output = Dynamic;
-}
-
-#[derive(Debug, Clone)]
-struct TensorAdd<S1: Shape, S2: Shape> {
-    lhs: Tensor<S1>,
-    rhs: Tensor<S2>,
-}
-
-impl<S1: Shape, S2: Shape> TensorAdd<S1, S2>
-where
-    S1: ShapeCompatible<S2>,
-{
-    fn forward(lhs: Tensor<S1>, rhs: Tensor<S2>) -> Tensor<<S1 as ShapeCompatible<S2>>::Output> {
-        let result = lhs.container.borrow().array.clone() + rhs.container.borrow().array.clone();
-        let node = TensorAdd { lhs, rhs };
-        Tensor::new_with_prev(result, Rc::new(RefCell::new(node)))
-    }
-}
-
-impl<S1: Shape, S2: Shape> Operation<<S1 as ShapeCompatible<S2>>::Output> for TensorAdd<S1, S2>
-where
-    S1: ShapeCompatible<S2>,
-{
-    fn backward(&mut self, output: &mut Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
-        let maybe_grad = output.container.borrow().grad.clone();
-        let grad = maybe_grad.unwrap_or(ndarray::Array::zeros(output.shape()));
-        let grad_a = grad.clone();
-        let grad_b = grad;
-        self.lhs.backward_internal(grad_a);
-        self.rhs.backward_internal(grad_b);
-    }
-
-    fn zero_graph(&self) {
-        self.lhs.zero_graph();
-        self.rhs.zero_graph();
-    }
-
-    fn build_graph(&self) {
-        self.lhs.build_graph();
-        self.rhs.build_graph();
-    }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorAdd::<DynamicShape, DynamicShape> {
-            lhs: self.lhs.clone_into_dynamic(),
-            rhs: self.rhs.clone_into_dynamic(),
-        }))
-    }
-}
-
-impl<S1: Shape, S2: Shape> Add<Tensor<S2>> for Tensor<S1>
-where
-    S1: ShapeCompatible<S2>,
-{
-    type Output = Tensor<<S1 as ShapeCompatible<S2>>::Output>;
-
-    fn add(self, other: Tensor<S2>) -> Self::Output {
-        TensorAdd::forward(self, other)
-    }
 }
 
 #[derive(Debug, Clone)]
