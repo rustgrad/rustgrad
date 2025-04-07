@@ -46,7 +46,7 @@ impl Default for Dynamic {
 }
 
 pub trait Shape: Debug + Default + Clone + 'static {
-    fn shape(&self) -> ArrayShape;
+    fn shape() -> ArrayShape;
     const NUM_DIMS: usize;
     // const Dims: [Dimension; NUM_DIMS];
 }
@@ -54,7 +54,7 @@ pub trait Shape: Debug + Default + Clone + 'static {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DynamicShape;
 impl Shape for DynamicShape {
-    fn shape(&self) -> ArrayShape {
+    fn shape() -> ArrayShape {
         ArrayShape {
             dims: vec![usize::MAX],
         }
@@ -128,9 +128,9 @@ pub type ArrayShape3<M: Dimension> = [M; 3];
 pub type ArrayShape4<M: Dimension> = [M; 3];
 
 impl<M: Dimension> Shape for ArrayShape1<M> {
-    fn shape(&self) -> ArrayShape {
+    fn shape() -> ArrayShape {
         ArrayShape {
-            dims: self.map(|m| m.size()).to_vec(),
+            dims: vec![M::default().size()],
         }
     }
     const NUM_DIMS: usize = 1;
@@ -150,14 +150,14 @@ pub type Rank4<M: Dimension, N: Dimension, O: Dimension, P: Dimension> = (M, N, 
 pub type Rank5<M: Dimension, N: Dimension, O: Dimension, P: Dimension, Q: Dimension> =
     (M, N, O, P, Q);
 impl Shape for Rank0 {
-    fn shape(&self) -> ArrayShape {
+    fn shape() -> ArrayShape {
         ArrayShape { dims: vec![] }
     }
     const NUM_DIMS: usize = 0;
 }
 
 impl<M: Dimension> Shape for Rank1<M> {
-    fn shape(&self) -> ArrayShape {
+    fn shape() -> ArrayShape {
         ArrayShape {
             dims: vec![M::default().size()],
         }
@@ -165,7 +165,7 @@ impl<M: Dimension> Shape for Rank1<M> {
     const NUM_DIMS: usize = 1;
 }
 impl<M: Dimension, N: Dimension> Shape for Rank2<M, N> {
-    fn shape(&self) -> ArrayShape {
+    fn shape() -> ArrayShape {
         ArrayShape {
             dims: vec![M::default().size(), N::default().size()],
         }
@@ -173,7 +173,7 @@ impl<M: Dimension, N: Dimension> Shape for Rank2<M, N> {
     const NUM_DIMS: usize = 2;
 }
 impl<O: Dimension, M: Dimension, N: Dimension> Shape for Rank3<O, M, N> {
-    fn shape(&self) -> ArrayShape {
+    fn shape() -> ArrayShape {
         ArrayShape {
             dims: vec![
                 O::default().size(),
@@ -186,7 +186,7 @@ impl<O: Dimension, M: Dimension, N: Dimension> Shape for Rank3<O, M, N> {
 }
 
 impl<P: Dimension, O: Dimension, M: Dimension, N: Dimension> Shape for Rank4<P, O, M, N> {
-    fn shape(&self) -> ArrayShape {
+    fn shape() -> ArrayShape {
         ArrayShape {
             dims: vec![
                 P::default().size(),

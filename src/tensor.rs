@@ -79,12 +79,12 @@ pub struct Tensor<S: Shape> {
 
 impl<S: Shape> Tensor<S> {
     pub fn ZERO() -> Tensor<S> {
-        let mut dims = S::default().shape().dims.clone();
+        let mut dims = S::shape().dims.clone();
         let shape = ArrayShape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
     pub fn new_random(mean: f32, std: f32) -> Tensor<S> {
-        let mut dims = S::default().shape().dims.clone();
+        let mut dims = S::shape().dims.clone();
         let shape = ArrayShape { dims };
         let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
         value = value * std + mean;
@@ -279,7 +279,7 @@ struct TensorReshape<S: Shape, K: Shape> {
 
 impl<S: Shape, K: Shape> TensorReshape<S, K> {
     pub fn forward(input: Tensor<S>) -> Tensor<K> {
-        let output_shape = K::default().shape();
+        let output_shape = K::shape();
         let new_data = input.data().into_shape_with_order(output_shape).unwrap();
         let node = TensorReshape {
             input_shape: input.shape(),
