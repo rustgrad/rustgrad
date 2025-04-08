@@ -1,16 +1,12 @@
 use crate::ops::matmul::MatMul;
-use ndarray::{Array, Dim, IxDyn};
+use ndarray::{Array, IxDyn};
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::{rand::prelude::*, RandomExt};
-use num_traits::Zero;
-use std::env::consts;
 use std::marker::PhantomData;
-use std::ops::{Div, Index};
-use std::process::Output;
 use std::{
     cell::RefCell,
-    fmt::{Debug, Write},
-    ops::{Add, Deref, Mul, Neg},
+    fmt::Debug,
+    ops::{Deref, Neg},
     rc::Rc,
 };
 
@@ -79,12 +75,12 @@ pub struct Tensor<S: Shape> {
 
 impl<S: Shape> Tensor<S> {
     pub fn ZERO() -> Tensor<S> {
-        let mut dims = S::shape().dims.clone();
+        let dims = S::shape().dims.clone();
         let shape = ArrayShape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
     pub fn new_random(mean: f32, std: f32) -> Tensor<S> {
-        let mut dims = S::shape().dims.clone();
+        let dims = S::shape().dims.clone();
         let shape = ArrayShape { dims };
         let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
         value = value * std + mean;

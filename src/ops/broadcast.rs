@@ -1,9 +1,8 @@
 use std::cell::RefCell;
-use std::ops::Mul;
 use std::rc::Rc;
 
-use crate::dimensions::{Dimension, DynamicShape, Shape};
-use crate::tensor::{Operation, ShapeCompatible, Tensor};
+use crate::dimensions::{DynamicShape, Shape};
+use crate::tensor::{Operation, Tensor};
 
 #[derive(Debug, Clone)]
 pub struct Broadcast<SIn: Shape, SOut: Shape> {
@@ -77,8 +76,8 @@ impl<S: Shape> Tensor<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::dimensions::Shape;
+    
+    
     use crate::dimensions::{Rank1, Rank2, S};
     use crate::tensor::Tensor;
 

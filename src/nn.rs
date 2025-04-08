@@ -1,8 +1,6 @@
 use crate::dimensions::DynamicShape;
-use crate::dimensions::Shape;
 use crate::dimensions::*;
 use crate::ops::matmul::MatMul;
-use crate::shape::ArrayShape;
 use crate::tensor::max;
 use crate::tensor::Tensor;
 #[derive(Debug)]
@@ -56,7 +54,7 @@ impl<D_IN: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYE
             last_layer: LinearLayer::new(false),
         };
     }
-    pub fn forward<K: Dimension>(&self, mut x: Tensor<(K, D_IN)>) -> Tensor<(K, D_OUT)> {
+    pub fn forward<K: Dimension>(&self, x: Tensor<(K, D_IN)>) -> Tensor<(K, D_OUT)> {
         let mut x = self.first_layer.forward(x);
         for layer in self.hidden_layers.iter() {
             x = layer.forward(x);
@@ -87,7 +85,7 @@ mod tests {
         println!("{:?}", layer_1);
         let x: Tensor<(S<1>, S<10>)> =
             Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
-        let mut x = layer_1.forward(x);
+        let x = layer_1.forward(x);
         println!("{:?}", x);
         let mut x = layer_2.forward(x);
         println!("{:?}", x);

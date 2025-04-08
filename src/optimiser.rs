@@ -29,11 +29,10 @@ impl SGDOptimizer {
 mod tests {
     use crate::{
         dimensions::S,
-        nn::{LinearLayer, MLP},
-        shape::ArrayShape,
+        nn::MLP,
     };
-    use ndarray::{array, Array};
-    use num_traits::Pow;
+    use ndarray::Array;
+    
 
     use super::*;
 

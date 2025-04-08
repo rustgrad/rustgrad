@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Debug;
 
 use crate::shape::ArrayShape;
 
@@ -121,11 +121,11 @@ impl<const N: usize> core::ops::Add<usize> for S<N> {
         N + rhs.size()
     }
 }
-pub type ArrayShape0<M: Dimension> = [M; 0];
-pub type ArrayShape1<M: Dimension> = [M; 1];
-pub type ArrayShape2<M: Dimension> = [M; 2];
-pub type ArrayShape3<M: Dimension> = [M; 3];
-pub type ArrayShape4<M: Dimension> = [M; 3];
+pub type ArrayShape0<M> = [M; 0];
+pub type ArrayShape1<M> = [M; 1];
+pub type ArrayShape2<M> = [M; 2];
+pub type ArrayShape3<M> = [M; 3];
+pub type ArrayShape4<M> = [M; 3];
 
 impl<M: Dimension> Shape for ArrayShape1<M> {
     fn shape() -> ArrayShape {
@@ -139,15 +139,15 @@ impl<M: Dimension> Shape for ArrayShape1<M> {
 /// Compile time known shape with 0 dimensions
 pub type Rank0 = ();
 /// Compile time known shape with 1 dimensions
-pub type Rank1<M: Dimension> = (M,);
+pub type Rank1<M> = (M,);
 /// Compile time known shape with 2 dimensions
-pub type Rank2<M: Dimension, N: Dimension> = (M, N);
+pub type Rank2<M, N> = (M, N);
 /// Compile time known shape with 3 dimensions
-pub type Rank3<M: Dimension, N: Dimension, O: Dimension> = (M, N, O);
+pub type Rank3<M, N, O> = (M, N, O);
 /// Compile time known shape with 4 dimensions
-pub type Rank4<M: Dimension, N: Dimension, O: Dimension, P: Dimension> = (M, N, O, P);
+pub type Rank4<M, N, O, P> = (M, N, O, P);
 /// Compile time known shape with 5 dimensions
-pub type Rank5<M: Dimension, N: Dimension, O: Dimension, P: Dimension, Q: Dimension> =
+pub type Rank5<M, N, O, P, Q> =
     (M, N, O, P, Q);
 impl Shape for Rank0 {
     fn shape() -> ArrayShape {

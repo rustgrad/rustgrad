@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ops::Mul;
 use std::rc::Rc;
 
-use crate::dimensions::{Dimension, DynamicShape, Shape};
+use crate::dimensions::{DynamicShape, Shape};
 use crate::tensor::{Operation, ShapeCompatible, Tensor};
 
 #[derive(Debug, Clone)]
