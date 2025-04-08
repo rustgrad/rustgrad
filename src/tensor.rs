@@ -106,11 +106,7 @@ impl<S: Shape> Tensor<S> {
     }
     pub fn clone_into_dynamic(&self) -> Tensor<DynamicShape> {
         Tensor {
-            container: Rc::new(RefCell::new(DataContainer {
-                array: self.data().into_dyn(),
-                grad: self.grad(),
-                num_consumers: self.container.borrow().num_consumers,
-            })),
+            container: self.container.clone(),
             prev_op: self
                 .prev_op
                 .as_ref()
