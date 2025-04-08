@@ -1,5 +1,4 @@
 pub mod dimensions;
-pub mod matmul;
 pub mod nn;
 pub mod ops;
 pub mod optimiser;

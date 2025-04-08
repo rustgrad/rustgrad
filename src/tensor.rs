@@ -1,4 +1,4 @@
-use crate::matmul::MatMul;
+use crate::ops::matmul::MatMul;
 use ndarray::{Array, Dim, IxDyn};
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::{rand::prelude::*, RandomExt};

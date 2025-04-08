@@ -1,7 +1,7 @@
 use crate::dimensions::DynamicShape;
 use crate::dimensions::Shape;
 use crate::dimensions::*;
-use crate::matmul::MatMul;
+use crate::ops::matmul::MatMul;
 use crate::shape::ArrayShape;
 use crate::tensor::max;
 use crate::tensor::Tensor;
