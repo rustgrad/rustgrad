@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
@@ -7,7 +8,7 @@ use crate::tensor::{Operation, Tensor};
 #[derive(Debug, Clone)]
 pub struct Broadcast<SIn: Shape, SOut: Shape> {
     input: Tensor<SIn>,
-    output_shape: SOut,
+    phantom_data: PhantomData<SOut>,
 }
 
 impl<SIn: Shape, SOut: Shape> Broadcast<SIn, SOut> {
@@ -22,7 +23,7 @@ impl<SIn: Shape, SOut: Shape> Broadcast<SIn, SOut> {
 
         let op = Broadcast {
             input: input.clone(),
-            output_shape: SOut::default(),
+            phantom_data: PhantomData,
         };
 
         Tensor::new_with_prev(broadcasted, Rc::new(RefCell::new(op)))
@@ -64,7 +65,7 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Broadcast<SIn, SOut> {
     fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
         Rc::new(RefCell::new(Broadcast::<DynamicShape, DynamicShape> {
             input: self.input.clone_into_dynamic(),
-            output_shape: DynamicShape,
+            phantom_data: PhantomData,
         }))
     }
 }
@@ -76,8 +77,7 @@ impl<S: Shape> Tensor<S> {
 
 #[cfg(test)]
 mod tests {
-    
-    
+
     use crate::dimensions::{Rank1, Rank2, S};
     use crate::tensor::Tensor;
 

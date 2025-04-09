@@ -147,8 +147,7 @@ pub type Rank3<M, N, O> = (M, N, O);
 /// Compile time known shape with 4 dimensions
 pub type Rank4<M, N, O, P> = (M, N, O, P);
 /// Compile time known shape with 5 dimensions
-pub type Rank5<M, N, O, P, Q> =
-    (M, N, O, P, Q);
+pub type Rank5<M, N, O, P, Q> = (M, N, O, P, Q);
 impl Shape for Rank0 {
     fn shape() -> ArrayShape {
         ArrayShape { dims: vec![] }

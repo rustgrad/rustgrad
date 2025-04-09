@@ -1,10 +1,5 @@
-
 use std::marker::PhantomData;
-use std::{
-    cell::RefCell,
-    fmt::Debug,
-    rc::Rc,
-};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::dimensions::{DynamicShape, Shape};
 use crate::shape::ArrayShape;

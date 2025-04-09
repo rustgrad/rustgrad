@@ -27,12 +27,8 @@ impl SGDOptimizer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        dimensions::S,
-        nn::MLP,
-    };
+    use crate::{dimensions::S, nn::MLP};
     use ndarray::Array;
-    
 
     use super::*;
 
