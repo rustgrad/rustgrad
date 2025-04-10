@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
 use crate::tensor::{Operation, Tensor};
-use ndarray::array;
 
 #[derive(Debug, Clone)]
 struct TensorRelu<S1: Shape> {
