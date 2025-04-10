@@ -44,7 +44,7 @@ impl<S1: Shape> Operation<S1> for TensorRelu<S1> {
 }
 
 impl<S1: Shape> Tensor<S1> {
-    fn relu(self) -> Tensor<S1> {
+    pub fn relu(self) -> Tensor<S1> {
         TensorRelu::forward(self)
     }
 }
