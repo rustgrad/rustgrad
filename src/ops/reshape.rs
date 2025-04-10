@@ -50,3 +50,15 @@ impl<S: Shape, K: Shape> Operation<K> for TensorReshape<S, K> {
         }))
     }
 }
+
+impl<S: Shape> Tensor<S> {
+    pub fn reshape<K: Shape>(self) -> Tensor<K> {
+        TensorReshape::<S, K>::forward(self)
+    }
+
+    pub fn reshape_no_grad<K: Shape>(self) -> Tensor<K> {
+        let shape = self.shape();
+        let new_data = self.data().into_shape_with_order(shape.dims).unwrap();
+        Tensor::new(new_data)
+    }
+}

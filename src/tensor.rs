@@ -1,18 +1,23 @@
 use crate::ops::matmul::MatMul;
-use ndarray::{Array, IxDyn};
+use ndarray::{Array, Dim, IxDyn};
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::{rand::prelude::*, RandomExt};
+use num_traits::Zero;
+use std::env::consts;
 use std::marker::PhantomData;
+use std::ops::{Div, Index};
+use std::process::Output;
 use std::{
     cell::RefCell,
-    fmt::Debug,
-    ops::{Deref, Neg},
+    fmt::{Debug, Write},
+    ops::{Add, Deref, Mul, Neg},
     rc::Rc,
 };
 
 use crate::dimensions::{Dimension, Dynamic, DynamicShape, Rank1, Rank2, Rank3, Rank4, Shape, S};
 use crate::shape::ArrayShape;
 // use crate::{matmul::TensorMatMul, shape::ArrayShape};
+use crate::ops::reshape;
 
 pub trait Operation<S: Shape>: std::fmt::Debug {
     fn backward(&mut self, output: &mut Tensor<S>);
@@ -75,12 +80,12 @@ pub struct Tensor<S: Shape> {
 
 impl<S: Shape> Tensor<S> {
     pub fn ZERO() -> Tensor<S> {
-        let dims = S::shape().dims.clone();
+        let mut dims = S::shape().dims.clone();
         let shape = ArrayShape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
     pub fn new_random(mean: f32, std: f32) -> Tensor<S> {
-        let dims = S::shape().dims.clone();
+        let mut dims = S::shape().dims.clone();
         let shape = ArrayShape { dims };
         let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
         value = value * std + mean;
@@ -181,16 +186,6 @@ impl<S: Shape> Tensor<S> {
         let shape = binding.array.shape();
         shape.to_vec().into()
     }
-
-    pub fn reshape<K: Shape>(self, shape: ArrayShape) -> Tensor<K> {
-        TensorReshape::<S, K>::forward(self)
-    }
-
-    pub fn reshape_no_grad<K: Shape>(self) -> Tensor<K> {
-        let shape = self.shape();
-        let new_data = self.data().into_shape_with_order(shape.dims).unwrap();
-        Tensor::new(new_data)
-    }
 }
 
 pub trait DimCompatible<Rhs: Dimension> {
@@ -260,52 +255,6 @@ impl<const N: usize> DimCompatible<Dynamic> for S<N> {
 
 impl<const N: usize> DimCompatible<S<N>> for Dynamic {
     type Output = Dynamic;
-}
-
-#[derive(Debug, Clone)]
-struct TensorReshape<S: Shape, K: Shape> {
-    tensor: Tensor<S>,
-    input_shape: ArrayShape,
-    ph: PhantomData<K>,
-}
-
-impl<S: Shape, K: Shape> TensorReshape<S, K> {
-    pub fn forward(input: Tensor<S>) -> Tensor<K> {
-        let output_shape = K::shape();
-        let new_data = input.data().into_shape_with_order(output_shape).unwrap();
-        let node = TensorReshape {
-            input_shape: input.shape(),
-            tensor: input,
-            ph: PhantomData,
-        };
-        Tensor::new_with_prev(new_data, Rc::new(RefCell::new(node)))
-    }
-}
-
-impl<S: Shape, K: Shape> Operation<K> for TensorReshape<S, K> {
-    fn backward(&mut self, output: &mut Tensor<K>) {
-        let new_grad = output
-            .grad()
-            .expect("Missing gradient")
-            .into_shape_with_order(self.input_shape.dims.clone())
-            .unwrap();
-        self.tensor.backward_internal(new_grad);
-    }
-
-    fn zero_graph(&self) {
-        self.tensor.zero_graph();
-    }
-
-    fn build_graph(&self) {
-        self.tensor.build_graph();
-    }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorReshape::<DynamicShape, DynamicShape> {
-            tensor: self.tensor.clone_into_dynamic(),
-            input_shape: self.input_shape.clone(),
-            ph: PhantomData,
-        }))
-    }
 }
 
 #[derive(Debug, Clone)]
