@@ -51,6 +51,8 @@ impl<S1: Shape> Tensor<S1> {
 
 #[cfg(test)]
 mod tests {
+    use ndarray::array;
+
     use crate::dimensions::{Rank1, S};
 
     use super::*;

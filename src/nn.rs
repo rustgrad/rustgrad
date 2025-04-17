@@ -11,7 +11,7 @@ pub struct MLP<D_IN: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const H
     last_layer: LinearLayer<HIDDEN_DIM, D_OUT>,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct LinearLayer<D_IN: Dimension, D_OUT: Dimension> {
     weight: Tensor<(D_IN, D_OUT)>,
     bias: Tensor<(D_OUT,)>,
