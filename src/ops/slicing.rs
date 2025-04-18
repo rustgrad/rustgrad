@@ -92,7 +92,7 @@ mod tests {
         // Gradient should be None for a[0], and [2.0, 2.0] for a[1]
         let grad = a.grad().unwrap();
 
-        let expected = array![[0.0, 0.0], [2.0, 4.0]].into_dyn();
+        let expected = array![[0.0, 0.0], [2.0, 2.0]].into_dyn();
         assert_eq!(grad, expected);
     }
 }
