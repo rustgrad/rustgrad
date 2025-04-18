@@ -62,18 +62,3 @@ where
         TensorAdd::forward(self, other)
     }
 }
-
-impl<K: Dimension, I: Dimension> Add<Tensor<(I,)>> for Tensor<(K, I)> {
-    type Output = Tensor<(K, I)>;
-
-    fn add(self, rhs: Tensor<(I,)>) -> Self::Output {
-        todo!()
-    }
-}
-impl<K: Dimension, I: Dimension> Add<Tensor<(K, I)>> for Tensor<(I,)> {
-    type Output = Tensor<(K, I)>;
-
-    fn add(self, rhs: Tensor<(K, I)>) -> Self::Output {
-        todo!()
-    }
-}

@@ -23,9 +23,6 @@ impl<S1: Shape> Operation<S1> for TensorRelu<S1> {
         let grad = maybe_grad.unwrap_or(ndarray::Array::ones(output.shape()));
         let inp_val = self.inp.container.borrow().array.clone();
         let grad_a = inp_val.mapv(|x| if x > 0.0 { 1.0 } else { 0.0 }) * &grad;
-        println!("Grad: {:?}", grad);
-        println!("Grad A: {:?}", grad_a);
-        println!("Input Value: {:?}", inp_val);
         self.inp.backward_internal(grad_a);
     }
 

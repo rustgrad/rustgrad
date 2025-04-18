@@ -21,6 +21,12 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Slice<SIn, SOut> {
         let mut zeros = ndarray::ArrayD::zeros(input_shape.dims.clone());
 
         let mut slice = zeros.index_axis_mut(Axis(self.axis), self.index);
+        let grad_shape = grad.shape().to_vec();
+        let grad = grad.into_shape_with_order(slice.shape()).expect(&format!(
+            "Failed to reshape {:?} into {:?}",
+            grad_shape,
+            slice.shape()
+        ));
         slice.assign(&grad);
 
         self.input.backward_internal(zeros);
@@ -57,6 +63,15 @@ impl<S: Shape> Tensor<S> {
             axis,
             phantom: PhantomData,
         };
+        let shape = view.shape();
+        let view = view
+            .to_owned()
+            .into_shape_clone(Out::shape())
+            .expect(&format!(
+                "Failed to reshape {:?} into {:?}",
+                shape,
+                Out::shape()
+            ));
         Tensor::new_with_prev(view.into_dyn(), Rc::new(RefCell::new(op)))
     }
 }

@@ -312,7 +312,7 @@ fn output_shape(lsh: &ArrayShape, rsh: &ArrayShape) -> (ArrayShape, Strides, Str
     )
 }
 fn reshape(array: Array<f32, IxDyn>, shape: ArrayShape) -> Array<f32, IxDyn> {
-    array.into_shape_with_order(shape.dims).unwrap()
+    array.into_shape_clone(shape.dims).unwrap()
 }
 
 #[derive(Debug, PartialEq)]

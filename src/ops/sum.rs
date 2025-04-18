@@ -4,9 +4,7 @@ use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Rank0, Shape};
 use crate::tensor::{Operation, Tensor};
-use ndarray::{Array0, Axis, Dimension as _, Ix0};
-
-use super::broadcast;
+use ndarray::{Array0, Axis, Ix0};
 
 #[derive(Debug, Clone)]
 pub struct Sum<SIn: Shape, SOut: Shape> {
