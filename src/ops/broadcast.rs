@@ -1,6 +1,12 @@
+use core::panic;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
+
+use itertools::{
+    EitherOrBoth::{Both, Left, Right},
+    Itertools,
+};
 
 use crate::dimensions::{DynamicShape, Shape};
 use crate::tensor::{Operation, Tensor};
@@ -38,11 +44,36 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Broadcast<SIn, SOut> {
             .clone()
             .unwrap_or_else(|| ndarray::Array::zeros(output.shape()));
 
-        let input_shape = self.input.shape();
-        let input_ndim = input_shape.num_dims();
-
         let mut grad_owned = grad;
-        for axis in 0..grad_owned.ndim() {
+        let input_shape = SIn::shape();
+        let output_shape = SOut::shape();
+        let reversed_input_dims = input_shape.dims.iter().rev();
+        let reversed_output_dims = output_shape.dims.iter().rev();
+        let max_axis = input_shape.num_dims();
+        for (inverted_axis, dims) in reversed_input_dims
+            .zip_longest(reversed_output_dims)
+            .enumerate()
+        {
+            let axis = max_axis - inverted_axis;
+            match dims {
+                Both(input_dim, output_dim) => {
+                    if input_dim == output_dim {
+                        continue;
+                    }
+                    if input_dim != &1 {
+                        panic!("Input dimension is not 1");
+                    }
+                    let summed = grad_owned.sum_axis(ndarray::Axis(axis));
+                    grad_owned = summed.insert_axis(ndarray::Axis(axis));
+                }
+                Left(_) => {
+                    panic!("Output dimension is not in input shape");
+                }
+                Right(_) => {
+                    let summed = grad_owned.sum_axis(ndarray::Axis(axis));
+                    grad_owned = summed.insert_axis(ndarray::Axis(axis));
+                }
+            }
             let input_dim = *input_shape.dims.get(axis).unwrap_or(&1);
             if input_dim == 1 {
                 let summed = grad_owned.sum_axis(ndarray::Axis(axis));
@@ -50,7 +81,9 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Broadcast<SIn, SOut> {
             }
         }
 
-        let reduced = grad_owned.into_dyn();
+        let reduced = grad_owned.into_shape_clone(input_shape.clone());
+        let reduced = reduced.expect("Failed to reshape ");
+
         self.input.backward_internal(reduced);
     }
 

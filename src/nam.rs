@@ -137,7 +137,7 @@ fn test_nam_learns_sum_function() {
     let max_diff = diff.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
 
     assert!(
-        max_diff < 0.5,
+        max_diff < 0.005,
         "Model did not learn sum function well enough"
     );
 }
