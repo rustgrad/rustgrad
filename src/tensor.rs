@@ -9,7 +9,9 @@ use std::{
     rc::Rc,
 };
 
-use crate::dimensions::{Dimension, Dynamic, DynamicShape, Rank1, Rank2, Rank3, Rank4, Shape, S};
+use crate::dimensions::{
+    Dimension, Dynamic, DynamicShape, Rank0, Rank1, Rank2, Rank3, Rank4, Shape, S,
+};
 use crate::shape::ArrayShape;
 // use crate::{matmul::TensorMatMul, shape::ArrayShape};
 
@@ -190,6 +192,9 @@ pub trait ShapeCompatible<Rhs: Shape> {
 }
 impl ShapeCompatible<DynamicShape> for DynamicShape {
     type Output = DynamicShape;
+}
+impl ShapeCompatible<Rank0> for Rank0 {
+    type Output = Rank0;
 }
 impl<I: Dimension> ShapeCompatible<Rank1<I>> for Rank1<I> {
     type Output = Rank1<I>;

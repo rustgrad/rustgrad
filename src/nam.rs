@@ -77,3 +77,67 @@ impl<D_HIDDEN: Dimension, const NUM_FEATURES: usize> NAM<D_HIDDEN, NUM_FEATURES>
             .collect();
     }
 }
+
+#[test]
+fn test_nam_learns_sum_function() {
+    use crate::dimensions::{DynamicShape, S};
+    use crate::nam::NAM;
+    use crate::optimiser::SGDOptimizer;
+    use crate::tensor::Tensor;
+    use ndarray::Array2;
+
+    const NUM_FEATURES: usize = 3;
+    const BATCH_SIZE: usize = 4;
+
+    // Create synthetic input data (4 samples, 3 features)
+    let x_data = Array2::from_shape_vec(
+        (BATCH_SIZE, NUM_FEATURES),
+        vec![
+            1.0, 2.0, 3.0, // sum = 6.0
+            0.0, 0.0, 1.0, // sum = 1.0
+            1.0, 1.0, 1.0, // sum = 3.0
+            2.0, 2.0, 2.0, // sum = 6.0
+        ],
+    )
+    .unwrap();
+
+    let y_data = Array2::from_shape_vec((BATCH_SIZE, 1), vec![6.0, 1.0, 3.0, 6.0]).unwrap();
+
+    let x = Tensor::<(S<BATCH_SIZE>, S<NUM_FEATURES>)>::new(x_data.into_dyn());
+    let y_true = Tensor::<(S<BATCH_SIZE>, S<1>)>::new(y_data.into_dyn());
+
+    let model = NAM::<S<32>, NUM_FEATURES>::new(2); // Example with 2 hidden layers
+
+    let params = model.parameters();
+    let mut opt = SGDOptimizer::new(0.01, params);
+
+    for epoch in 0..1000 {
+        let y_pred = model.forward(x.clone());
+
+        let diff = y_pred.clone() + -y_true.clone();
+        let loss = diff.clone() * diff; // squared error
+        let mut loss = loss.mean(); // MSE
+
+        opt.zero_grad();
+        loss.backward();
+        opt.step();
+        opt.update_lr();
+
+        if epoch % 100 == 0 {
+            println!("Epoch {epoch}, Loss: {:?}", loss.data());
+        }
+    }
+
+    // Final check: model output should be close to expected values
+    let y_pred = model.forward(x.clone());
+    let y_pred_data = y_pred.data();
+
+    let expected = y_true.data();
+    let diff = &y_pred_data - &expected;
+    let max_diff = diff.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
+
+    assert!(
+        max_diff < 0.5,
+        "Model did not learn sum function well enough"
+    );
+}

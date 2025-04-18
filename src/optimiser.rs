@@ -1,6 +1,6 @@
 use crate::{dimensions::DynamicShape, tensor::Tensor};
 
-struct SGDOptimizer {
+pub(crate) struct SGDOptimizer {
     lr: f32,
     parameters: Vec<Tensor<DynamicShape>>,
 }
