@@ -62,7 +62,7 @@ impl<D_HIDDEN: Dimension, const NUM_FEATURES: usize> NAM<D_HIDDEN, NUM_FEATURES>
         let mut result: Tensor<(B, S<1>)> = Tensor::ZERO();
         for i in 0..NUM_FEATURES {
             let shape_function = &self.shape_functions[i];
-            let shape_input = x.slice(0, i).clone();
+            let shape_input = x.slice(1, i).clone();
             let shape_output = shape_function.forward(shape_input);
             result = result.clone() + shape_output;
         }
