@@ -8,8 +8,12 @@ pub mod relu;
 pub mod reshape;
 pub mod scalar;
 pub mod slicing;
+pub mod substract;
 pub mod sum;
 pub mod var;
+pub use substract::TensorSub;
+pub mod negate;
+pub use negate::TensorNeg;
 
 use matmul::MatMul;
 pub use scalar::*;

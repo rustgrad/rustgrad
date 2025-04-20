@@ -4,24 +4,24 @@ use crate::tensor::Tensor;
 
 use super::LinearLayer;
 #[derive(Debug)]
-pub struct MLP<D_IN: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYERS: usize>
+pub struct MLP<DIn: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYERS: usize>
 {
-    first_layer: LinearLayer<D_IN, HIDDEN_DIM>,
+    first_layer: LinearLayer<DIn, HIDDEN_DIM>,
     hidden_layers: [LinearLayer<HIDDEN_DIM, HIDDEN_DIM>; HIDDEN_LAYERS],
     last_layer: LinearLayer<HIDDEN_DIM, D_OUT>,
 }
 
-impl<D_IN: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYERS: usize>
-    MLP<D_IN, D_OUT, HIDDEN_DIM, HIDDEN_LAYERS>
+impl<DIn: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYERS: usize>
+    MLP<DIn, D_OUT, HIDDEN_DIM, HIDDEN_LAYERS>
 {
-    pub fn new() -> MLP<D_IN, D_OUT, HIDDEN_DIM, HIDDEN_LAYERS> {
+    pub fn new() -> MLP<DIn, D_OUT, HIDDEN_DIM, HIDDEN_LAYERS> {
         return MLP {
             first_layer: LinearLayer::new(true),
             hidden_layers: core::array::from_fn(|_| LinearLayer::new(true)),
             last_layer: LinearLayer::new(false),
         };
     }
-    pub fn forward<K: Dimension>(&self, x: Tensor<(K, D_IN)>) -> Tensor<(K, D_OUT)> {
+    pub fn forward<K: Dimension>(&self, x: Tensor<(K, DIn)>) -> Tensor<(K, D_OUT)> {
         let mut x = self.first_layer.forward(x);
         for layer in self.hidden_layers.iter() {
             x = layer.forward(x);

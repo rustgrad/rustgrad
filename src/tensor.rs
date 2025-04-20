@@ -1,12 +1,7 @@
 use ndarray::{Array, IxDyn};
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;
-use std::{
-    cell::RefCell,
-    fmt::Debug,
-    ops::{Deref, Neg},
-    rc::Rc,
-};
+use std::{cell::RefCell, fmt::Debug, ops::Deref, rc::Rc};
 
 use crate::dimensions::{
     Dimension, Dynamic, DynamicShape, Rank0, Rank1, Rank2, Rank3, Rank4, Shape, S,
@@ -233,48 +228,6 @@ impl<const N: usize> DimCompatible<Dynamic> for S<N> {
 
 impl<const N: usize> DimCompatible<S<N>> for Dynamic {
     type Output = Dynamic;
-}
-
-#[derive(Debug, Clone)]
-struct TensorNeg<S: Shape> {
-    tensor: Tensor<S>,
-}
-
-impl<S: Shape> TensorNeg<S> {
-    fn forward(tensor: Tensor<S>) -> Tensor<S> {
-        let result = -tensor.container.borrow().array.clone();
-        let node = TensorNeg { tensor };
-        Tensor::new_with_prev(result, Rc::new(RefCell::new(node)))
-    }
-}
-
-impl<S: Shape> Operation<S> for TensorNeg<S> {
-    fn backward(&self, output: &Tensor<S>) {
-        let grad = output
-            .grad()
-            .unwrap_or(ndarray::Array::zeros(output.shape()));
-        self.tensor.backward_internal(-grad);
-    }
-
-    fn zero_graph(&self) {
-        self.tensor.zero_graph();
-    }
-
-    fn build_graph(&self) {
-        self.tensor.build_graph();
-    }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorNeg::<DynamicShape> {
-            tensor: self.tensor.clone_into_dynamic(),
-        }))
-    }
-}
-
-impl<S: Shape> Neg for Tensor<S> {
-    type Output = Tensor<S>;
-    fn neg(self) -> Self::Output {
-        TensorNeg::forward(self)
-    }
 }
 
 #[cfg(test)]
