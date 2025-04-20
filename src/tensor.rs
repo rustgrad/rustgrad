@@ -24,14 +24,14 @@ pub trait Operation<S: Shape>: std::fmt::Debug {
 pub fn test_fn() {
     let tensor = Tensor::<Rank2<S<2>, S<4>>>::ZERO();
     let tensor2 = Tensor::<Rank2<S<4>, S<2>>>::ZERO();
-    let tensor3 = Tensor::<Rank2<S<3>, S<2>>>::ZERO();
+    let _tensor3 = Tensor::<Rank2<S<3>, S<2>>>::ZERO();
     const TEST: usize = 3;
 
-    let tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
-    let result_a = tensor.matmul(tensor2);
+    let _tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
+    let _result_a = tensor.matmul(tensor2);
     let tensor = Tensor::<Rank1<S<4>>>::ZERO();
     let tensor2 = Tensor::<Rank1<S<4>>>::ZERO();
-    let result_b = tensor2 + tensor;
+    let _result_b = tensor2 + tensor;
     // let result_b = tensor.dot(tensor3); // This breaks, becaus the shapes don't fits
 }
 
@@ -393,14 +393,14 @@ mod tests {
     fn it_works() {
         let tensor = Tensor::<Rank2<S<2>, S<4>>>::ZERO();
         let tensor2 = Tensor::<Rank2<S<4>, S<2>>>::ZERO();
-        let tensor3 = Tensor::<Rank2<S<3>, S<2>>>::ZERO();
+        let _tensor3 = Tensor::<Rank2<S<3>, S<2>>>::ZERO();
         const TEST: usize = 3;
 
-        let tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
-        let result_a = tensor.matmul(tensor2);
+        let _tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
+        let _result_a = tensor.matmul(tensor2);
         let tensor = Tensor::<Rank1<S<4>>>::ZERO();
         let tensor2 = Tensor::<Rank1<S<4>>>::ZERO();
-        let result_b = tensor2 + tensor;
+        let _result_b = tensor2 + tensor;
         //let result_b = tensor.dot(tensor3); // This breaks, becaus the shapes don't fits
         let test_0 = Tensor::<Rank1<Dynamic>>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
         let test_1 = test_0.clone() + test_0.clone();

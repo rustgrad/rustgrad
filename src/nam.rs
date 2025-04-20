@@ -2,9 +2,9 @@ use std::usize;
 
 use crate::dimensions::{Dimension, DynamicShape};
 
+use crate::dimensions::S;
 use crate::nn::LinearLayer;
 use crate::tensor::Tensor;
-use crate::dimensions::S;
 
 pub struct ShapeFunction<D_HIDDEN: Dimension> {
     pub num_layers: usize,

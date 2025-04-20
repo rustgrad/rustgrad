@@ -38,7 +38,7 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Mean<SIn, SOut> {
             .unwrap_or_else(|| ndarray::Array::zeros(output.shape()));
 
         let input_shape = self.input.shape();
-        let output_shape = output.shape();
+        let _output_shape = output.shape();
         let axis = self.axis;
 
         // Calculate scaling factor (1 / axis size)
