@@ -359,12 +359,12 @@ mod tests {
         println!("_____________________________");
         test_2.backward();
     }
-    fn test<D_IN: Dimension, D_OUT: Dimension, K: Dimension>() {
-        let test_0 = Tensor::<(K, D_IN)>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
-        let test_1 = Tensor::<(D_IN, D_OUT)>::new(
+    fn _test<DIn: Dimension, DOut: Dimension, K: Dimension>() {
+        let test_0 = Tensor::<(K, DIn)>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
+        let test_1 = Tensor::<(DIn, DOut)>::new(
             array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn(),
         ); // grad_2 = 2 * test_1
-        let test_2: Tensor<(K, D_OUT)> = test_0.clone().matmul(test_1);
+        let test_2: Tensor<(K, DOut)> = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();

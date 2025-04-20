@@ -78,7 +78,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::dimensions::{Rank1, S};
     use crate::tensor::Tensor;
     use ndarray::array;

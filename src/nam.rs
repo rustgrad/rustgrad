@@ -6,14 +6,14 @@ use crate::dimensions::S;
 use crate::nn::LinearLayer;
 use crate::tensor::Tensor;
 
-pub struct ShapeFunction<D_HIDDEN: Dimension> {
+pub struct ShapeFunction<DHidden: Dimension> {
     pub num_layers: usize,
-    hidden_layers: Vec<LinearLayer<D_HIDDEN, D_HIDDEN>>,
-    first_layer: LinearLayer<S<1>, D_HIDDEN>,
-    last_layer: LinearLayer<D_HIDDEN, S<1>>,
+    hidden_layers: Vec<LinearLayer<DHidden, DHidden>>,
+    first_layer: LinearLayer<S<1>, DHidden>,
+    last_layer: LinearLayer<DHidden, S<1>>,
 }
-impl<D_HIDDEN: Dimension> ShapeFunction<D_HIDDEN> {
-    pub fn new(num_layers: usize) -> ShapeFunction<D_HIDDEN> {
+impl<DHidden: Dimension> ShapeFunction<DHidden> {
+    pub fn new(num_layers: usize) -> ShapeFunction<DHidden> {
         return ShapeFunction {
             num_layers,
             hidden_layers: vec![LinearLayer::new(true); num_layers],
@@ -43,11 +43,11 @@ impl<D_HIDDEN: Dimension> ShapeFunction<D_HIDDEN> {
     }
 }
 
-pub struct NAM<D_HIDDEN: Dimension, const NUM_FEATURES: usize> {
-    shape_functions: Vec<ShapeFunction<D_HIDDEN>>,
+pub struct NAM<DHidden: Dimension, const NUM_FEATURES: usize> {
+    shape_functions: Vec<ShapeFunction<DHidden>>,
 }
-impl<D_HIDDEN: Dimension, const NUM_FEATURES: usize> NAM<D_HIDDEN, NUM_FEATURES> {
-    pub fn new(num_layers: usize) -> NAM<D_HIDDEN, NUM_FEATURES> {
+impl<DHidden: Dimension, const NUM_FEATURES: usize> NAM<DHidden, NUM_FEATURES> {
+    pub fn new(num_layers: usize) -> NAM<DHidden, NUM_FEATURES> {
         return NAM {
             shape_functions: (0..NUM_FEATURES)
                 .map(|_| ShapeFunction::new(num_layers))
@@ -56,7 +56,7 @@ impl<D_HIDDEN: Dimension, const NUM_FEATURES: usize> NAM<D_HIDDEN, NUM_FEATURES>
     }
     pub fn forward<B: Dimension>(&self, x: Tensor<(B, S<NUM_FEATURES>)>) -> Tensor<(B, S<1>)> {
         let x = x.clone();
-        let mut result: Tensor<(B, S<1>)> = Tensor::ZERO();
+        let mut result: Tensor<(B, S<1>)> = Tensor::zero();
         for i in 0..NUM_FEATURES {
             let shape_function = &self.shape_functions[i];
             let shape_input = x.slice(1, i).clone();

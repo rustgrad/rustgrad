@@ -25,7 +25,7 @@ impl<D_IN: Dimension, D_OUT: Dimension> LinearLayer<D_IN, D_OUT> {
         let x: Tensor<(K, D_OUT)> = x.matmul(self.weight.clone());
         let mut x = x + self.bias.broadcast_to();
         if self.non_linearity {
-            x = max(x, Tensor::<(K, D_OUT)>::ZERO());
+            x = max(x, Tensor::<(K, D_OUT)>::zero());
         }
         x
     }

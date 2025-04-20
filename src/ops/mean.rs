@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::dimensions::{DynamicShape, Shape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
-use ndarray::{Array0, Axis, Dimension as _, Ix0};
+use ndarray::{Array0, Axis, Ix0};
 
 #[derive(Debug, Clone)]
 pub struct Mean<SIn: Shape, SOut: Shape> {
