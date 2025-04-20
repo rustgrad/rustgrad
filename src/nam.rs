@@ -134,8 +134,15 @@ fn test_nam_learns_sum_function() {
 
     let expected = y_true.data();
     let diff = &y_pred_data - &expected;
+    println!("Predicted: {:?}", y_pred_data);
+    println!("Expected: {:?}", expected);
+    println!("Diff: {:?}", diff);
     let max_diff = diff.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
 
+    assert!(
+        !y_pred.data().is_any_nan() && !y_pred.data().is_any_infinite(),
+        "Model output contains NaN or Inf values"
+    );
     assert!(
         max_diff < 0.005,
         "Model did not learn sum function well enough"
