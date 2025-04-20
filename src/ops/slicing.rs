@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
 use crate::tensor::{Operation, Tensor};
-use ndarray::{ArrayD, Axis};
+use ndarray::Axis;
 
 #[derive(Debug, Clone)]
 pub struct Slice<SIn: Shape, SOut: Shape> {

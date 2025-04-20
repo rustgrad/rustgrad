@@ -1,13 +1,10 @@
-use core::num;
 use std::usize;
 
-use crate::dimensions::{Dimension, Dynamic, DynamicShape, Rank2};
+use crate::dimensions::{Dimension, DynamicShape};
 
 use crate::nn::LinearLayer;
-use crate::ops::relu;
-use crate::ops::slicing::*;
 use crate::tensor::Tensor;
-use crate::{dimensions::S, nn::MLP};
+use crate::dimensions::S;
 
 pub struct ShapeFunction<D_HIDDEN: Dimension> {
     pub num_layers: usize,
@@ -58,7 +55,7 @@ impl<D_HIDDEN: Dimension, const NUM_FEATURES: usize> NAM<D_HIDDEN, NUM_FEATURES>
         };
     }
     pub fn forward<B: Dimension>(&self, x: Tensor<(B, S<NUM_FEATURES>)>) -> Tensor<(B, S<1>)> {
-        let mut x = x.clone();
+        let x = x.clone();
         let mut result: Tensor<(B, S<1>)> = Tensor::ZERO();
         for i in 0..NUM_FEATURES {
             let shape_function = &self.shape_functions[i];
@@ -80,7 +77,7 @@ impl<D_HIDDEN: Dimension, const NUM_FEATURES: usize> NAM<D_HIDDEN, NUM_FEATURES>
 
 #[test]
 fn test_nam_learns_sum_function() {
-    use crate::dimensions::{DynamicShape, S};
+    use crate::dimensions::S;
     use crate::nam::NAM;
     use crate::optimiser::SGDOptimizer;
     use crate::tensor::Tensor;

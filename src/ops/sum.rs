@@ -40,7 +40,7 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Sum<SIn, SOut> {
         let input_shape = self.input.shape();
 
         // Expand grad to input shape
-        let mut broadcasted = if let Some(axis) = self.axis {
+        let broadcasted = if let Some(axis) = self.axis {
             let grad_expanded = grad.insert_axis(Axis(axis));
             grad_expanded
                 .broadcast(input_shape.clone())
