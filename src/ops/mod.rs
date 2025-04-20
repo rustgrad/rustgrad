@@ -14,6 +14,8 @@ pub mod var;
 pub use substract::TensorSub;
 pub mod negate;
 pub use negate::TensorNeg;
+pub mod sqrt;
+pub use sqrt::TensorSqrt;
 
 use matmul::MatMul;
 pub use scalar::*;
