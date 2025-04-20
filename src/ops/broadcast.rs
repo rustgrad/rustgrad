@@ -9,7 +9,8 @@ use itertools::{
 };
 
 use crate::dimensions::{DynamicShape, Shape};
-use crate::tensor::{Operation, Tensor};
+use crate::ops::Operation;
+use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]
 pub struct Broadcast<SIn: Shape, SOut: Shape> {
@@ -36,7 +37,7 @@ impl<SIn: Shape, SOut: Shape> Broadcast<SIn, SOut> {
     }
 }
 impl<SIn: Shape, SOut: Shape> Operation<SOut> for Broadcast<SIn, SOut> {
-    fn backward(&mut self, output: &mut Tensor<SOut>) {
+    fn backward(&self, output: &Tensor<SOut>) {
         let grad = output
             .container
             .borrow()

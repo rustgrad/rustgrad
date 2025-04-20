@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
-use crate::tensor::{Operation, Tensor};
+use crate::ops::Operation;
+use crate::tensor::Tensor;
 use ndarray::{Array0, Axis, Dimension as _, Ix0};
 
 #[derive(Debug, Clone)]
@@ -29,7 +30,7 @@ impl<SIn: Shape, SOut: Shape> Mean<SIn, SOut> {
 }
 
 impl<SIn: Shape, SOut: Shape> Operation<SOut> for Mean<SIn, SOut> {
-    fn backward(&mut self, output: &mut Tensor<SOut>) {
+    fn backward(&self, output: &Tensor<SOut>) {
         let grad = output
             .container
             .borrow()
@@ -106,7 +107,7 @@ mod test {
         assert_eq!(mean.data(), expected);
 
         // Test backward: mean -> backward() should propagate evenly
-        let mut loss = mean.clone().sum(); // just sum for simplicity
+        let loss = mean.clone().sum(); // just sum for simplicity
         loss.backward();
 
         let grad = a.grad().unwrap();

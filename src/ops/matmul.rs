@@ -10,11 +10,11 @@ use crate::dimensions::Rank3;
 use crate::dimensions::Rank4;
 use crate::dimensions::Shape;
 use crate::iter_range_par;
+use crate::ops::Operation;
 use crate::run_par;
 use crate::shape::ArrayShape;
 use crate::sharing::UnsafeSharedRef;
 use crate::tensor::DimCompatible;
-use crate::tensor::Operation;
 use crate::tensor::SwapLastDims;
 use crate::tensor::Tensor;
 
@@ -115,7 +115,7 @@ where
     S1: MatCompatible<S2>,
     S2: SwapLastDims,
 {
-    fn backward(&mut self, output: &mut Tensor<<S1 as MatCompatible<S2>>::Output>) {
+    fn backward(&self, output: &Tensor<<S1 as MatCompatible<S2>>::Output>) {
         let grad = output.grad().borrow().clone().unwrap();
 
         let input_lhs = self.lhs.data();
@@ -354,7 +354,7 @@ mod tests {
     fn test_linear_layer_mm() {
         let test_0 = Tensor::<(S<1>, S<5>)>::new(Array::ones((1, 5)).into_dyn()); // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
         let test_1 = Tensor::<(S<5>, S<5>)>::new(Array::ones((5, 5)).into_dyn()); // grad_2 = 2 * test_1
-        let mut test_2: Tensor<Rank2<S<1>, S<5>>> = test_0.clone().matmul(test_1);
+        let test_2: Tensor<Rank2<S<1>, S<5>>> = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();
@@ -364,7 +364,7 @@ mod tests {
         let test_1 = Tensor::<(D_IN, D_OUT)>::new(
             array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn(),
         ); // grad_2 = 2 * test_1
-        let mut test_2: Tensor<(K, D_OUT)> = test_0.clone().matmul(test_1);
+        let test_2: Tensor<(K, D_OUT)> = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();
@@ -377,13 +377,13 @@ mod tests {
             array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn(),
         ); // grad_2 = 2 * test_1
         let test_1 = test_1.reshape_no_grad::<(S<4>, S<2>)>();
-        let mut test_2 = test_0.clone().matmul(test_1);
+        let test_2 = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();
         let test_3: Tensor<(S<2>, S<2>)> = Tensor::new(array![[2.0], [3.0]].into_dyn()); //2X1 // grad = 2 * grad_1 = 4 * test_1 = 8 * test_0
         let test_4 = Tensor::<(S<2>, S<2>)>::new(array![[1.0, 2.0], [1.0, 2.0]].into_dyn()); // 2X2 grad_2 = 2 * test_1
-        let mut test_2 = test_4.clone().matmul(test_3);
+        let test_2 = test_4.clone().matmul(test_3);
         print!("forward passed");
         test_2.backward();
 
@@ -399,5 +399,4 @@ mod tests {
 
         // println!("{:?}", test_2);
     }
-    fn test_2() {}
 }

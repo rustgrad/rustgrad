@@ -3,7 +3,8 @@ use std::ops::Add;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
-use crate::tensor::{Operation, ShapeCompatible, Tensor};
+use crate::ops::Operation;
+use crate::tensor::{ShapeCompatible, Tensor};
 
 #[derive(Debug, Clone)]
 struct TensorAdd<S1: Shape, S2: Shape> {
@@ -26,7 +27,7 @@ impl<S1: Shape, S2: Shape> Operation<<S1 as ShapeCompatible<S2>>::Output> for Te
 where
     S1: ShapeCompatible<S2>,
 {
-    fn backward(&mut self, output: &mut Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
+    fn backward(&self, output: &Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
         let maybe_grad = output.container.borrow().grad.clone();
         let grad = maybe_grad.unwrap_or(ndarray::Array::zeros(output.shape()));
         let grad_a = grad.clone();

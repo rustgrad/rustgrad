@@ -1,7 +1,6 @@
-use crate::ops::matmul::MatMul;
 use ndarray::{Array, IxDyn};
 use ndarray_rand::rand_distr::StandardNormal;
-use ndarray_rand::{rand::prelude::*, RandomExt};
+use ndarray_rand::RandomExt;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -12,28 +11,8 @@ use std::{
 use crate::dimensions::{
     Dimension, Dynamic, DynamicShape, Rank0, Rank1, Rank2, Rank3, Rank4, Shape, S,
 };
+use crate::ops::Operation;
 use crate::shape::ArrayShape;
-// use crate::{matmul::TensorMatMul, shape::ArrayShape};
-
-pub trait Operation<S: Shape>: std::fmt::Debug {
-    fn backward(&mut self, output: &mut Tensor<S>);
-    fn zero_graph(&self);
-    fn build_graph(&self);
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>>;
-}
-pub fn test_fn() {
-    let tensor = Tensor::<Rank2<S<2>, S<4>>>::ZERO();
-    let tensor2 = Tensor::<Rank2<S<4>, S<2>>>::ZERO();
-    let _tensor3 = Tensor::<Rank2<S<3>, S<2>>>::ZERO();
-    const TEST: usize = 3;
-
-    let _tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
-    let _result_a = tensor.matmul(tensor2);
-    let tensor = Tensor::<Rank1<S<4>>>::ZERO();
-    let tensor2 = Tensor::<Rank1<S<4>>>::ZERO();
-    let _result_b = tensor2 + tensor;
-    // let result_b = tensor.dot(tensor3); // This breaks, becaus the shapes don't fits
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct DataContainer {
@@ -124,7 +103,7 @@ impl<S: Shape> Tensor<S> {
             prev_op: Some(prev_op),
         }
     }
-    pub fn backward(&mut self) {
+    pub fn backward(&self) {
         // This is a leaf node, we need to build the graph
         self.build_graph();
 
@@ -132,7 +111,7 @@ impl<S: Shape> Tensor<S> {
         self.backward_internal(start_grad);
     }
 
-    pub fn backward_internal(&mut self, grad: Array<f32, IxDyn>) {
+    pub fn backward_internal(&self, grad: Array<f32, IxDyn>) {
         assert!(self.container.borrow().array.dim() == grad.dim());
         let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
         self.container.deref().borrow_mut().grad = Some(new_grad);
@@ -270,7 +249,7 @@ impl<S: Shape> TensorNeg<S> {
 }
 
 impl<S: Shape> Operation<S> for TensorNeg<S> {
-    fn backward(&mut self, output: &mut Tensor<S>) {
+    fn backward(&self, output: &Tensor<S>) {
         let grad = output
             .grad()
             .unwrap_or(ndarray::Array::zeros(output.shape()));
@@ -298,94 +277,11 @@ impl<S: Shape> Neg for Tensor<S> {
     }
 }
 
-#[derive(Debug, Clone)]
-struct TensorMax<S1: Shape, S2: Shape> {
-    lhs: Tensor<S1>,
-    rhs: Tensor<S2>,
-    take_from_a: Vec<bool>,
-}
-
-impl<S1: Shape, S2: Shape> TensorMax<S1, S2>
-where
-    S1: ShapeCompatible<S2>,
-{
-    fn forward(lhs: Tensor<S1>, rhs: Tensor<S2>) -> Tensor<<S1 as ShapeCompatible<S2>>::Output> {
-        assert!(lhs.shape() == rhs.shape());
-        let (take_from_a, output): (Vec<bool>, Vec<f32>) = lhs
-            .data()
-            .iter()
-            .zip(rhs.data().iter())
-            .map(|(a, b)| (a > b, if a > b { *a } else { *b }))
-            .unzip();
-        let output = Array::from_vec(output)
-            .into_shape_with_order(lhs.shape())
-            .unwrap();
-        let node = TensorMax {
-            lhs,
-            rhs,
-            take_from_a,
-        };
-        Tensor::new_with_prev(output, Rc::new(RefCell::new(node)))
-    }
-}
-
-impl<S1: Shape, S2: Shape> Operation<<S1 as ShapeCompatible<S2>>::Output> for TensorMax<S1, S2>
-where
-    S1: ShapeCompatible<S2>,
-{
-    fn backward(&mut self, output: &mut Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
-        let grad = output.grad().expect("should have gradient");
-        let (grad_a, grad_b): (Vec<f32>, Vec<f32>) = self
-            .take_from_a
-            .iter()
-            .zip(grad.iter())
-            .map(|(&take_first, &grad)| match take_first {
-                true => (grad, 0.0),
-                false => (0.0, grad),
-            })
-            .unzip();
-
-        let grad_a = Array::from_vec(grad_a)
-            .into_shape_with_order(output.shape())
-            .unwrap();
-        let grad_b = Array::from_vec(grad_b)
-            .into_shape_with_order(output.shape())
-            .unwrap();
-        self.lhs.backward_internal(grad_a);
-        self.rhs.backward_internal(grad_b);
-    }
-
-    fn zero_graph(&self) {
-        self.lhs.zero_graph();
-        self.rhs.zero_graph();
-    }
-
-    fn build_graph(&self) {
-        self.lhs.build_graph();
-        self.rhs.build_graph();
-    }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorMax::<DynamicShape, DynamicShape> {
-            lhs: self.lhs.clone_into_dynamic(),
-            rhs: self.rhs.clone_into_dynamic(),
-            take_from_a: self.take_from_a.clone(),
-        }))
-    }
-}
-
-pub fn max<S1: Shape, S2: Shape>(
-    a: Tensor<S1>,
-    b: Tensor<S2>,
-) -> Tensor<<S1 as ShapeCompatible<S2>>::Output>
-where
-    S1: ShapeCompatible<S2>,
-{
-    TensorMax::forward(a, b)
-}
-
 #[cfg(test)]
 mod tests {
     use ndarray::array;
+
+    use crate::ops::matmul::MatMul;
 
     use super::*;
 
@@ -405,7 +301,7 @@ mod tests {
         let test_0 = Tensor::<Rank1<Dynamic>>::new(array![[1.0, 2.0, 3.0, 4.0]].into_dyn());
         let test_1 = test_0.clone() + test_0.clone();
 
-        let mut test_2: Tensor<Rank1<Dynamic>> = test_1.clone() + test_1.clone();
+        let test_2: Tensor<Rank1<Dynamic>> = test_1.clone() + test_1.clone();
         println!("forward: {:?}", test_2);
         println!("_____________________________");
         test_2.backward();

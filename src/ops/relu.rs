@@ -2,7 +2,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
-use crate::tensor::{Operation, Tensor};
+use crate::ops::Operation;
+use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]
 struct TensorRelu<S1: Shape> {
@@ -18,7 +19,7 @@ impl<S1: Shape> TensorRelu<S1> {
 }
 
 impl<S1: Shape> Operation<S1> for TensorRelu<S1> {
-    fn backward(&mut self, output: &mut Tensor<S1>) {
+    fn backward(&self, output: &Tensor<S1>) {
         let maybe_grad = output.container.borrow().grad.clone();
         let grad = maybe_grad.unwrap_or(ndarray::Array::ones(output.shape()));
         let inp_val = self.inp.container.borrow().array.clone();
@@ -80,7 +81,7 @@ mod tests {
     #[test]
     fn test_relu_backward() {
         let input = Tensor::<Rank1<S<3>>>::new(array![-1.0, 2.0, -3.0].into_dyn());
-        let mut result = input.clone().relu();
+        let result = input.clone().relu();
         result.backward();
         let expected_grad = array![0.0, 1.0, 0.0].into_dyn();
         assert_eq!(

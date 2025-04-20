@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Rank0, Shape};
-use crate::tensor::{Operation, Tensor};
+use crate::ops::Operation;
+use crate::tensor::Tensor;
 use ndarray::{Array0, Axis, Ix0};
 
 #[derive(Debug, Clone)]
@@ -29,7 +30,7 @@ impl<SIn: Shape, SOut: Shape> Sum<SIn, SOut> {
 }
 
 impl<SIn: Shape, SOut: Shape> Operation<SOut> for Sum<SIn, SOut> {
-    fn backward(&mut self, output: &mut Tensor<SOut>) {
+    fn backward(&self, output: &Tensor<SOut>) {
         let grad = output
             .container
             .borrow()

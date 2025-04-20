@@ -2,8 +2,9 @@ use std::marker::PhantomData;
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::dimensions::{DynamicShape, Shape};
+use crate::ops::Operation;
 use crate::shape::ArrayShape;
-use crate::tensor::{Operation, Tensor};
+use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]
 struct TensorReshape<S: Shape, K: Shape> {
@@ -26,7 +27,7 @@ impl<S: Shape, K: Shape> TensorReshape<S, K> {
 }
 
 impl<S: Shape, K: Shape> Operation<K> for TensorReshape<S, K> {
-    fn backward(&mut self, output: &mut Tensor<K>) {
+    fn backward(&self, output: &Tensor<K>) {
         let new_grad = output
             .grad()
             .expect("Missing gradient")

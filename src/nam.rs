@@ -113,7 +113,7 @@ fn test_nam_learns_sum_function() {
 
         let diff = y_pred.clone() + -y_true.clone();
         let loss = diff.clone() * diff; // squared error
-        let mut loss = loss.mean(); // MSE
+        let loss = loss.mean(); // MSE
 
         opt.zero_grad();
         loss.backward();

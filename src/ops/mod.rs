@@ -6,5 +6,38 @@ pub mod mean;
 pub mod mul;
 pub mod relu;
 pub mod reshape;
+pub mod scalar;
 pub mod slicing;
 pub mod sum;
+pub mod var;
+
+use matmul::MatMul;
+pub use scalar::*;
+pub mod max;
+pub use max::max;
+
+use crate::{
+    dimensions::{DynamicShape, Rank1, Rank2, Shape, S},
+    tensor::Tensor,
+};
+use std::{cell::RefCell, rc::Rc};
+
+pub trait Operation<S: Shape>: std::fmt::Debug {
+    fn backward(&self, output: &Tensor<S>);
+    fn zero_graph(&self);
+    fn build_graph(&self);
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>>;
+}
+pub fn test_fn() {
+    let tensor = Tensor::<Rank2<S<2>, S<4>>>::ZERO();
+    let tensor2 = Tensor::<Rank2<S<4>, S<2>>>::ZERO();
+    let _tensor3 = Tensor::<Rank2<S<3>, S<2>>>::ZERO();
+    const TEST: usize = 3;
+
+    let _tensor4 = Tensor::<Rank2<S<2>, S<TEST>>>::ZERO();
+    let _result_a = tensor.matmul(tensor2);
+    let tensor = Tensor::<Rank1<S<4>>>::ZERO();
+    let tensor2 = Tensor::<Rank1<S<4>>>::ZERO();
+    let _result_b = tensor2 + tensor;
+    // let result_b = tensor.dot(tensor3); // This breaks, becaus the shapes don't fits
+}

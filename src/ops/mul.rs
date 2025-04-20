@@ -3,7 +3,8 @@ use std::ops::Mul;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
-use crate::tensor::{Operation, ShapeCompatible, Tensor};
+use crate::ops::Operation;
+use crate::tensor::{ShapeCompatible, Tensor};
 
 #[derive(Debug, Clone)]
 struct TensorMul<S1: Shape, S2: Shape> {
@@ -26,7 +27,7 @@ impl<S1: Shape, S2: Shape> Operation<<S1 as ShapeCompatible<S2>>::Output> for Te
 where
     S1: ShapeCompatible<S2>,
 {
-    fn backward(&mut self, output: &mut Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
+    fn backward(&self, output: &Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
         let maybe_grad = output.container.borrow().grad.clone();
         let grad = maybe_grad.unwrap_or(ndarray::Array::ones(output.shape()));
 
@@ -86,7 +87,7 @@ mod tests {
     fn test_dot_forward_backward() {
         let a: Tensor<Rank1<S<3>>> = Tensor::new(array![1.0, 2.0, 3.0].into_dyn());
         let b: Tensor<Rank1<S<3>>> = Tensor::new(array![4.0, 5.0, 6.0].into_dyn());
-        let mut c = a.clone() * b.clone();
+        let c = a.clone() * b.clone();
 
         // Forward check
         assert_eq!(c.data(), array![4.0, 10.0, 18.0].into_dyn());

@@ -4,7 +4,8 @@ use std::ops::Div;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
-use crate::tensor::{Operation, ShapeCompatible, Tensor};
+use crate::ops::Operation;
+use crate::tensor::{ShapeCompatible, Tensor};
 
 #[derive(Debug, Clone)]
 struct TensorDiv<S1: Shape, S2: Shape> {
@@ -27,7 +28,7 @@ impl<S1: Shape, S2: Shape> Operation<<S1 as ShapeCompatible<S2>>::Output> for Te
 where
     S1: ShapeCompatible<S2>,
 {
-    fn backward(&mut self, output: &mut Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
+    fn backward(&self, output: &Tensor<<S1 as ShapeCompatible<S2>>::Output>) {
         let grad = output.grad().unwrap_or_else(|| Array::ones(output.shape()));
         let rhs_data = self.rhs.data();
         let lhs_data = self.lhs.data();

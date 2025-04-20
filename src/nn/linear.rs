@@ -1,7 +1,8 @@
 use crate::dimensions::Dimension;
 use crate::dimensions::DynamicShape;
 use crate::ops::matmul::MatMul;
-use crate::tensor::{max, Tensor};
+use crate::ops::max;
+use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]
 pub struct LinearLayer<D_IN: Dimension, D_OUT: Dimension> {

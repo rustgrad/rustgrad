@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::dimensions::{DynamicShape, Shape};
-use crate::tensor::{Operation, Tensor};
+use crate::ops::Operation;
+use crate::tensor::Tensor;
 use ndarray::Axis;
 
 #[derive(Debug, Clone)]
@@ -15,7 +16,7 @@ pub struct Slice<SIn: Shape, SOut: Shape> {
 }
 
 impl<SIn: Shape, SOut: Shape> Operation<SOut> for Slice<SIn, SOut> {
-    fn backward(&mut self, output: &mut Tensor<SOut>) {
+    fn backward(&self, output: &Tensor<SOut>) {
         let grad = output.container.borrow().grad.clone().unwrap();
         let input_shape = self.input.shape();
         let mut zeros = ndarray::ArrayD::zeros(input_shape.dims.clone());
@@ -101,7 +102,7 @@ mod tests {
         println!("{:?}", b);
 
         // Perform dummy computation on b to trigger backward
-        let mut c = b.clone() * Tensor::<(S<1>,)>::new(array![2.0].into_dyn()).broadcast_to();
+        let c = b.clone() * Tensor::<(S<1>,)>::new(array![2.0].into_dyn()).broadcast_to();
         c.backward();
 
         // Gradient should be None for a[0], and [2.0, 2.0] for a[1]

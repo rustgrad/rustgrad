@@ -54,7 +54,7 @@ mod tests {
             Tensor::new(array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0].into_dyn());
         let x = layer_1.forward(x);
         println!("{:?}", x);
-        let mut x = layer_2.forward(x);
+        let x = layer_2.forward(x);
         println!("{:?}", x);
         x.backward();
         println!("layer_1 {:?}", layer_1);
