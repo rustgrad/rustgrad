@@ -4,6 +4,7 @@ pub mod div;
 pub mod matmul;
 pub mod mean;
 pub mod mul;
+pub use mul::TensorMul;
 pub mod relu;
 pub mod reshape;
 pub mod scalar;

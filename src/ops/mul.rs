@@ -7,7 +7,7 @@ use crate::ops::Operation;
 use crate::tensor::{ShapeCompatible, Tensor};
 
 #[derive(Debug, Clone)]
-struct TensorMul<S1: Shape, S2: Shape> {
+pub struct TensorMul<S1: Shape, S2: Shape> {
     lhs: Tensor<S1>,
     rhs: Tensor<S2>,
 }
