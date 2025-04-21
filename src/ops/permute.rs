@@ -1,9 +1,8 @@
-use core::panic;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::dimensions::{Dimension, DynamicShape, Shape};
+use crate::dimensions::{DynamicShape, Shape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 
