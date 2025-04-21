@@ -2,7 +2,7 @@ use crate::dimensions::{Dimension, DynamicShape};
 use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]
-pub struct BatchNorm1D<DIn: Dimension> {
+pub struct BatchNorm1d<DIn: Dimension> {
     gamma: Tensor<(DIn,)>,        // Scale parameter
     beta: Tensor<(DIn,)>,         // Shift parameter
     running_mean: Tensor<(DIn,)>, // Running mean for inference
@@ -12,8 +12,8 @@ pub struct BatchNorm1D<DIn: Dimension> {
     is_training: bool,            // Whether to use training or inference mode
 }
 
-impl<DIn: Dimension> BatchNorm1D<DIn> {
-    pub fn new(momentum: f32, eps: f32) -> BatchNorm1D<DIn> {
+impl<DIn: Dimension> BatchNorm1d<DIn> {
+    pub fn new(momentum: f32, eps: f32) -> BatchNorm1d<DIn> {
         let gamma = Tensor::new_random(1.0, 0.0); // Init gamma = 1
         let beta = Tensor::new_random(0.0, 0.0); // Init beta = 0
         let running_mean = Tensor::new_random(0.0, 0.0);
