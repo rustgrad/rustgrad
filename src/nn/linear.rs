@@ -21,6 +21,17 @@ impl<DIn: Dimension, D_OUT: Dimension> LinearLayer<DIn, D_OUT> {
             non_linearity,
         }
     }
+    pub fn forward2b<K: Dimension, I: Dimension>(
+        &self,
+        x: Tensor<(K, I, DIn)>,
+    ) -> Tensor<(K, I, D_OUT)> {
+        let x: Tensor<(K, I, D_OUT)> = x.matmul(self.weight.clone().broadcast_to());
+        let mut x = x + self.bias.broadcast_to();
+        if self.non_linearity {
+            x = max(x, Tensor::<(K, I, D_OUT)>::zero());
+        }
+        x
+    }
     pub fn forward<K: Dimension>(&self, x: Tensor<(K, DIn)>) -> Tensor<(K, D_OUT)> {
         let x: Tensor<(K, D_OUT)> = x.matmul(self.weight.clone());
         let mut x = x + self.bias.broadcast_to();
