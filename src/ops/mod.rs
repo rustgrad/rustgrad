@@ -16,6 +16,8 @@ pub mod negate;
 pub use negate::TensorNeg;
 pub mod sqrt;
 pub use sqrt::TensorSqrt;
+pub mod permute;
+pub use permute::TensorPermute;
 
 use matmul::MatMul;
 pub use scalar::*;
