@@ -2,7 +2,7 @@ pub mod dimensions;
 pub mod nam;
 pub mod nn;
 pub mod ops;
-pub mod optimiser;
+pub mod optim;
 pub mod parallel;
 pub mod shape;
 pub mod sharing;

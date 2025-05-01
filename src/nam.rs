@@ -79,7 +79,7 @@ impl<DHidden: Dimension, const NUM_FEATURES: usize> NAM<DHidden, NUM_FEATURES> {
 fn test_nam_learns_sum_function() {
     use crate::dimensions::S;
     use crate::nam::NAM;
-    use crate::optimiser::SGDOptimizer;
+    use crate::optim::sgd::SGDOptimizer;
     use crate::tensor::Tensor;
     use ndarray::Array2;
 
