@@ -1,27 +1,32 @@
-use crate::{dimensions::DynamicShape, tensor::Tensor};
+use crate::{dimensions::DynamicShape, optim::optimizer::Optimizer, tensor::Tensor};
 
 pub(crate) struct SGDOptimizer {
     lr: f32,
     parameters: Vec<Tensor<DynamicShape>>,
 }
+
 impl SGDOptimizer {
     pub fn new(lr: f32, parameters: Vec<Tensor<DynamicShape>>) -> SGDOptimizer {
         SGDOptimizer { lr, parameters }
     }
-    pub fn step(&self) {
+
+    pub fn update_lr(&mut self, new_lr: f32) {
+        self.lr = new_lr;
+    }
+}
+
+impl Optimizer for SGDOptimizer {
+    fn step(&mut self) {
         for param in self.parameters.iter() {
             let change = -param.grad().expect("Grad not calculated.") * self.lr;
             param.add_value(change);
         }
     }
-    pub fn zero_grad(&self) {
+
+    fn zero_grad(&self) {
         for param in self.parameters.iter() {
             param.zero_grad();
         }
-    }
-
-    pub fn update_lr(&mut self) {
-        self.lr *= 0.9999;
     }
 }
 
@@ -70,7 +75,7 @@ mod tests {
                 println!("===============================");
                 accumulated_loss = 0.0;
             }
-            optimiser.update_lr();
+            optimiser.update_lr(0.01);
         }
         println!("{:?}", mlp);
     }

@@ -79,7 +79,8 @@ impl<DHidden: Dimension, const NUM_FEATURES: usize> NAM<DHidden, NUM_FEATURES> {
 fn test_nam_learns_sum_function() {
     use crate::dimensions::S;
     use crate::nam::NAM;
-    use crate::optim::sgd::SGDOptimizer;
+    use crate::optim::adam::AdamOptimizer;
+    use crate::optim::optimizer::Optimizer;
     use crate::tensor::Tensor;
     use ndarray::Array2;
 
@@ -106,7 +107,7 @@ fn test_nam_learns_sum_function() {
     let model = NAM::<S<32>, NUM_FEATURES>::new(2); // Example with 2 hidden layers
 
     let params = model.parameters();
-    let mut opt = SGDOptimizer::new(0.01, params);
+    let mut opt = AdamOptimizer::new_with_defaults(0.0001, params);
 
     for epoch in 0..1000 {
         let y_pred = model.forward(x.clone());
@@ -118,7 +119,6 @@ fn test_nam_learns_sum_function() {
         opt.zero_grad();
         loss.backward();
         opt.step();
-        opt.update_lr();
 
         if epoch % 100 == 0 {
             println!("Epoch {epoch}, Loss: {:?}", loss.data());
