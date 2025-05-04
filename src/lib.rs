@@ -1,4 +1,5 @@
 pub mod array_shape;
+pub mod data;
 pub mod dimensions;
 pub mod nam;
 pub mod nn;

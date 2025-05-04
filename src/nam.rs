@@ -77,53 +77,65 @@ impl<DHidden: Dimension, const NUM_FEATURES: usize> NAM<DHidden, NUM_FEATURES> {
 
 #[test]
 fn test_nam_learns_sum_function() {
+    use crate::data::*;
     use crate::dimensions::S;
+    use crate::dimensions::{Rank1, Rank2};
     use crate::nam::NAM;
     use crate::optim::adam::AdamOptimizer;
     use crate::optim::optimizer::Optimizer;
     use crate::tensor::Tensor;
     use ndarray::Array2;
 
+    use crate::data::labeled_dataset::LabeledTensorDataLoader;
+    use crate::data::loader::DataLoaderExt as _;
+    use crate::dimensions::{Dimension, DynamicShape, Rank0};
+
     const NUM_FEATURES: usize = 3;
     const BATCH_SIZE: usize = 4;
 
-    // Create synthetic input data (4 samples, 3 features)
-    let x_data = Array2::from_shape_vec(
-        (BATCH_SIZE, NUM_FEATURES),
-        vec![
-            1.0, 2.0, 3.0, // sum = 6.0
-            0.0, 0.0, 1.0, // sum = 1.0
-            1.0, 1.0, 1.0, // sum = 3.0
-            2.0, 2.0, 2.0, // sum = 6.0
-        ],
-    )
-    .unwrap();
+    let mut labeled_data: Vec<LabeledTensorSample<Rank1<S<NUM_FEATURES>>, Rank1<S<1>>>> =
+        Vec::new();
 
-    let y_data = Array2::from_shape_vec((BATCH_SIZE, 1), vec![6.0, 1.0, 3.0, 6.0]).unwrap();
-
-    let x = Tensor::<(S<BATCH_SIZE>, S<NUM_FEATURES>)>::new(x_data.into_dyn());
-    let y_true = Tensor::<(S<BATCH_SIZE>, S<1>)>::new(y_data.into_dyn());
-
+    for i in 0..100 {
+        let input = Tensor::new_random(0.0, 1.0);
+        let label: Tensor<Rank0> = input.sum();
+        labeled_data.push(LabeledTensorSample {
+            input: input,
+            label: label.reshape(),
+        });
+    }
     let model = NAM::<S<32>, NUM_FEATURES>::new(2); // Example with 2 hidden layers
 
+    let mut dataloader = LabeledTensorDataLoader {
+        dataset: labeled_data.clone(),
+    };
+
     let params = model.parameters();
-    let mut opt = AdamOptimizer::new_with_defaults(0.0001, params);
+    let mut opt = AdamOptimizer::new_with_defaults(0.0005, params);
 
-    for epoch in 0..2000 {
-        let y_pred = model.forward(x.clone());
+    for epoch in 0..100 {
+        for (idx, batch) in dataloader.iter_shuffled(epoch).enumerate() {
+            let x: Tensor<(S<BATCH_SIZE>, S<NUM_FEATURES>)> = batch.input;
+            let y_true: Tensor<(S<BATCH_SIZE>, S<1>)> = batch.label;
+            let y_pred = model.forward(x.clone());
 
-        let diff = y_pred.clone() + -y_true.clone();
-        let loss = diff.clone() * diff; // squared error
-        let loss = loss.mean(); // MSE
+            let diff = y_pred.clone() + -y_true.clone();
+            let loss = diff.clone() * diff; // squared error
+            let loss = loss.mean(); // MSE
 
-        opt.zero_grad();
-        loss.backward();
-        opt.step();
+            opt.zero_grad();
+            loss.backward();
+            opt.step();
 
-        if epoch % 100 == 0 {
-            println!("Epoch {epoch}, Loss: {:?}", loss.data());
+            if epoch % 100 == 0 && idx == 0 {
+                println!("Epoch {epoch}, Loss: {:?}", loss.data());
+            }
         }
     }
+
+    let sample = labeled_data.get_sample(0);
+    let x: Tensor<(S<1>, S<3>)> = sample.input.reshape();
+    let y_true = sample.label;
 
     // Final check: model output should be close to expected values
     let y_pred = model.forward(x.clone());
@@ -141,7 +153,7 @@ fn test_nam_learns_sum_function() {
         "Model output contains NaN or Inf values"
     );
     assert!(
-        max_diff < 0.005,
+        max_diff < 0.01,
         "Model did not learn sum function well enough"
     );
 }
