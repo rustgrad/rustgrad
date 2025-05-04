@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
+use crate::array_shape::ArrayShape;
 use crate::dimensions::{DynamicShape, Shape};
 use crate::ops::Operation;
-use crate::shape::ArrayShape;
 use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]

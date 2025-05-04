@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::shape::ArrayShape;
+use crate::array_shape::ArrayShape;
 
 #[derive(Debug)]
 pub enum DimKind {

@@ -3,11 +3,11 @@ use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;
 use std::{cell::RefCell, fmt::Debug, ops::Deref, rc::Rc};
 
+use crate::array_shape::ArrayShape;
 use crate::dimensions::{
     Dimension, Dynamic, DynamicShape, Rank0, Rank1, Rank2, Rank3, Rank4, Shape, S,
 };
 use crate::ops::Operation;
-use crate::shape::ArrayShape;
 
 #[derive(Default, Debug, Clone)]
 pub struct DataContainer {

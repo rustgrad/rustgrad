@@ -3,6 +3,7 @@ use ndarray::Array;
 use ndarray::IxDyn;
 use std::borrow::Borrow;
 
+use crate::array_shape::ArrayShape;
 use crate::dimensions::Dimension;
 use crate::dimensions::DynamicShape;
 use crate::dimensions::Rank2;
@@ -12,7 +13,6 @@ use crate::dimensions::Shape;
 use crate::iter_range_par;
 use crate::ops::Operation;
 use crate::run_par;
-use crate::shape::ArrayShape;
 use crate::sharing::UnsafeSharedRef;
 use crate::tensor::DimCompatible;
 use crate::tensor::SwapLastDims;
