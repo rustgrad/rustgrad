@@ -109,7 +109,7 @@ fn test_nam_learns_sum_function() {
     let params = model.parameters();
     let mut opt = AdamOptimizer::new_with_defaults(0.0001, params);
 
-    for epoch in 0..1000 {
+    for epoch in 0..2000 {
         let y_pred = model.forward(x.clone());
 
         let diff = y_pred.clone() + -y_true.clone();
