@@ -19,6 +19,8 @@ pub mod sqrt;
 pub use sqrt::TensorSqrt;
 pub mod permute;
 pub use permute::TensorPermute;
+pub mod stack;
+pub use stack::TensorStack;
 
 use matmul::MatMul;
 pub use scalar::*;

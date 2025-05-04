@@ -180,6 +180,7 @@ mod tests {
         ]
         .into_dyn();
 
+        c.build_graph();
         c.backward_internal(upstream_grad);
 
         // Verify first tensor gradient - should match first two rows of upstream_grad
@@ -203,7 +204,7 @@ mod tests {
             [[0.7, 0.8, 0.9], [1.0, 1.1, 1.2]]
         ]
         .into_dyn();
-
+        d.build_graph();
         d.backward_internal(upstream_grad_horizontal);
 
         // Verify first tensor gradient - should match first three columns
