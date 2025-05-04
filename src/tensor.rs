@@ -108,12 +108,18 @@ impl<S: Shape> Tensor<S> {
 
     pub fn backward_internal(&self, grad: Array<f32, IxDyn>) {
         assert!(self.container.borrow().array.dim() == grad.dim());
-        let new_grad = self.grad().unwrap_or(Array::zeros(self.shape())).clone() + grad.clone();
-        self.container.deref().borrow_mut().grad = Some(new_grad);
-
-        self.container.deref().borrow_mut().num_consumers -= 1;
-        if self.container.borrow().num_consumers > 0 {
-            return;
+        {
+            let mut data_container = self.container.deref().borrow_mut();
+            let new_grad = data_container
+                .grad
+                .as_ref()
+                .unwrap_or(&Array::zeros(self.shape()))
+                + grad;
+            data_container.grad = Some(new_grad);
+            data_container.num_consumers -= 1;
+            if data_container.num_consumers > 0 {
+                return;
+            }
         }
         if let Some(op) = self.prev_op.clone() {
             op.borrow_mut().backward(self);
