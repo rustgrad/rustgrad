@@ -79,16 +79,16 @@ impl<DHidden: Dimension, const NUM_FEATURES: usize> NAM<DHidden, NUM_FEATURES> {
 fn test_nam_learns_sum_function() {
     use crate::data::*;
     use crate::dimensions::S;
-    use crate::dimensions::{Rank1, Rank2};
+    use crate::dimensions::Rank1;
     use crate::nam::NAM;
     use crate::optim::adam::AdamOptimizer;
     use crate::optim::optimizer::Optimizer;
     use crate::tensor::Tensor;
-    use ndarray::Array2;
+    
 
     use crate::data::labeled_dataset::LabeledTensorDataLoader;
     use crate::data::loader::DataLoaderExt as _;
-    use crate::dimensions::{Dimension, DynamicShape, Rank0};
+    use crate::dimensions::Rank0;
 
     const NUM_FEATURES: usize = 3;
     const BATCH_SIZE: usize = 4;
@@ -106,17 +106,16 @@ fn test_nam_learns_sum_function() {
     }
     let model = NAM::<S<32>, NUM_FEATURES>::new(2); // Example with 2 hidden layers
 
-    let mut dataloader = LabeledTensorDataLoader {
-        dataset: labeled_data.clone(),
-    };
+    let mut dataloader: LabeledTensorDataLoader<(S<3>,), (S<1>,), S<BATCH_SIZE>> =
+        LabeledTensorDataLoader::new(labeled_data.clone());
 
     let params = model.parameters();
     let mut opt = AdamOptimizer::new_with_defaults(0.0005, params);
 
     for epoch in 0..100 {
         for (idx, batch) in dataloader.iter_shuffled(epoch).enumerate() {
-            let x: Tensor<(S<BATCH_SIZE>, S<NUM_FEATURES>)> = batch.input;
-            let y_true: Tensor<(S<BATCH_SIZE>, S<1>)> = batch.label;
+            let x = batch.input;
+            let y_true = batch.label;
             let y_pred = model.forward(x.clone());
 
             let diff = y_pred.clone() + -y_true.clone();

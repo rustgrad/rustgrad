@@ -1,7 +1,34 @@
-use crate::{dimensions::Shape, ops::TensorStack};
+use crate::{
+    dimensions::{Dimension, DynamicShape, Shape},
+    ops::TensorStack,
+};
+use std::marker::PhantomData;
 
 use super::{DataLoader, Dataset};
 use crate::tensor::Tensor;
+
+/// Trait that enforces shape compatibility between sample shapes and batch shapes
+pub trait BatchCompatible<SampleShape: Shape> {
+    type Output: Shape;
+}
+
+// Implementations for different shape combinations
+impl<B: Dimension, I: Dimension> BatchCompatible<(I,)> for B {
+    type Output = (B, I);
+}
+
+impl<B: Dimension, I: Dimension, J: Dimension> BatchCompatible<(I, J)> for B {
+    type Output = (B, I, J);
+}
+
+impl<B: Dimension, I: Dimension, J: Dimension, K: Dimension> BatchCompatible<(I, J, K)> for B {
+    type Output = (B, I, J, K);
+}
+
+// Allow dynamic shapes as a fallback
+impl BatchCompatible<DynamicShape> for DynamicShape {
+    type Output = DynamicShape;
+}
 
 #[derive(Debug, Clone)]
 pub struct LabeledTensorSample<I, L>
@@ -27,39 +54,54 @@ where
     }
 }
 
-pub struct LabeledTensorDataLoader<I, L>
+pub struct LabeledTensorDataLoader<I, L, B>
 where
     I: Shape,
     L: Shape,
+    B: Dimension + BatchCompatible<I> + BatchCompatible<L>,
 {
     pub dataset: Vec<LabeledTensorSample<I, L>>,
+    _phantom: PhantomData<B>,
 }
 
-impl<I, L, BI, BL>
+impl<I, L, B> LabeledTensorDataLoader<I, L, B>
+where
+    I: Shape,
+    L: Shape,
+    B: Dimension + BatchCompatible<I> + BatchCompatible<L>,
+{
+    pub fn new(dataset: Vec<LabeledTensorSample<I, L>>) -> Self {
+        Self {
+            dataset,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<I, L, B>
     DataLoader<
         Vec<LabeledTensorSample<I, L>>,
         LabeledTensorSample<I, L>,
-        LabeledTensorSample<BI, BL>,
-    > for LabeledTensorDataLoader<I, L>
+        LabeledTensorSample<<B as BatchCompatible<I>>::Output, <B as BatchCompatible<L>>::Output>,
+    > for LabeledTensorDataLoader<I, L, B>
 where
     I: Shape,
     L: Shape,
-    BI: Shape,
-    BL: Shape,
+    B: Dimension + BatchCompatible<I> + BatchCompatible<L>,
 {
     fn get_dataset(&self) -> &Vec<LabeledTensorSample<I, L>> {
         &self.dataset
     }
 
     fn get_batch_size(&self) -> usize {
-        BI::shape()
-            .dims
-            .get(0)
-            .expect("Empty output shape is invalid for batches.")
-            .to_owned()
+        B::default().size()
     }
 
-    fn collate(&self, samples: Vec<LabeledTensorSample<I, L>>) -> LabeledTensorSample<BI, BL> {
+    fn collate(
+        &self,
+        samples: Vec<LabeledTensorSample<I, L>>,
+    ) -> LabeledTensorSample<<B as BatchCompatible<I>>::Output, <B as BatchCompatible<L>>::Output>
+    {
         let inputs = samples.iter().map(|s| s.input.clone()).collect();
         let labels = samples.iter().map(|s| s.label.clone()).collect();
 
