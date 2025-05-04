@@ -77,7 +77,7 @@ impl<Dl: Dimension, Dc: Dimension, Dlc: Dimension> TimeMixing<Dl, Dc, Dlc> {
         self.norm.forward(x + x_res) // Residual + Norm
     }
 
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor> {
         let mut params = vec![];
         params.extend(self.linear.parameters());
         params.extend(self.norm.parameters());
@@ -159,7 +159,7 @@ impl<Dl: Dimension, Dc: Dimension, DOut: Dimension, Dlc: Dimension, Dlo: Dimensi
         self.feature_mixing.forward(x)
     }
 
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor> {
         let mut params = vec![];
         params.extend(self.time_mixing.parameters());
         params.extend(self.feature_mixing.parameters());

@@ -1,11 +1,11 @@
-use crate::{dimensions::DynamicShape, optim::optimizer::Optimizer, tensor::Tensor};
+use crate::{optim::optimizer::Optimizer, tensor::Tensor};
 
 pub(crate) struct AdamOptimizer {
     lr: f32,
     beta1: f32,
     beta2: f32,
     epsilon: f32,
-    parameters: Vec<Tensor<DynamicShape>>,
+    parameters: Vec<Tensor>,
     m: Vec<ndarray::ArrayD<f32>>, // First moment vector
     v: Vec<ndarray::ArrayD<f32>>, // Second moment vector
     t: u32,                       // Time step
@@ -17,7 +17,7 @@ impl AdamOptimizer {
         beta1: f32,
         beta2: f32,
         epsilon: f32,
-        parameters: Vec<Tensor<DynamicShape>>,
+        parameters: Vec<Tensor>,
     ) -> AdamOptimizer {
         let m = parameters
             .iter()
@@ -39,7 +39,7 @@ impl AdamOptimizer {
         }
     }
 
-    pub fn new_with_defaults(lr: f32, parameters: Vec<Tensor<DynamicShape>>) -> AdamOptimizer {
+    pub fn new_with_defaults(lr: f32, parameters: Vec<Tensor>) -> AdamOptimizer {
         let m = parameters
             .iter()
             .map(|p| ndarray::ArrayD::zeros(p.shape()))
@@ -92,7 +92,6 @@ impl Optimizer for AdamOptimizer {
 mod tests {
     use super::*;
     use crate::{dimensions::S, nn::MLP};
-    
 
     #[test]
     fn test_adam_optimizer() {

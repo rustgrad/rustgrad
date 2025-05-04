@@ -1,12 +1,12 @@
-use crate::{dimensions::DynamicShape, optim::optimizer::Optimizer, tensor::Tensor};
+use crate::{optim::optimizer::Optimizer, tensor::Tensor};
 
 pub(crate) struct SGDOptimizer {
     lr: f32,
-    parameters: Vec<Tensor<DynamicShape>>,
+    parameters: Vec<Tensor>,
 }
 
 impl SGDOptimizer {
-    pub fn new(lr: f32, parameters: Vec<Tensor<DynamicShape>>) -> SGDOptimizer {
+    pub fn new(lr: f32, parameters: Vec<Tensor>) -> SGDOptimizer {
         SGDOptimizer { lr, parameters }
     }
 

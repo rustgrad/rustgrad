@@ -28,7 +28,7 @@ impl<DIn: Dimension, D_OUT: Dimension, HIDDEN_DIM: Dimension, const HIDDEN_LAYER
         }
         self.last_layer.forward(x)
     }
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor> {
         let mut params = self.first_layer.parameters();
         for layer in self.hidden_layers.iter() {
             params.extend(layer.parameters());

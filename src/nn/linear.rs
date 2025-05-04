@@ -40,7 +40,7 @@ impl<DIn: Dimension, D_OUT: Dimension> LinearLayer<DIn, D_OUT> {
         }
         x
     }
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor> {
         vec![
             self.weight.clone_into_dynamic(),
             self.bias.clone_into_dynamic(),

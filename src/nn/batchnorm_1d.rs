@@ -50,7 +50,7 @@ impl<DIn: Dimension> BatchNorm1d<DIn> {
         }
     }
 
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor> {
         vec![
             self.gamma.clone_into_dynamic(),
             self.beta.clone_into_dynamic(),

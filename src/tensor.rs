@@ -43,7 +43,7 @@ impl<P: Dimension, O: Dimension, N: Dimension, M: Dimension> SwapLastDims for Ra
 // }
 
 #[derive(Debug, Clone)]
-pub struct Tensor<S: Shape> {
+pub struct Tensor<S: Shape = DynamicShape> {
     pub container: Rc<RefCell<DataContainer>>,
     pub prev_op: Option<Rc<RefCell<dyn Operation<S>>>>,
 }
@@ -75,7 +75,7 @@ impl<S: Shape> Tensor<S> {
             prev_op: None,
         }
     }
-    pub fn clone_into_dynamic(&self) -> Tensor<DynamicShape> {
+    pub fn clone_into_dynamic(&self) -> Tensor {
         Tensor {
             container: self.container.clone(),
             prev_op: self

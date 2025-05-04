@@ -23,7 +23,7 @@ impl<DT: Dimension, DC: Dimension, Dtc: Dimension> TimeBatchNorm<DT, DC, Dtc> {
         x_normed.reshape()
     }
 
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor> {
         self.batch_norm.parameters()
     }
 }
