@@ -162,6 +162,31 @@ mod tests {
     }
 
     #[test]
+    fn test_stack_matrices_axis_1() {
+        let a = Tensor::<Rank2<S<2>, S<2>>>::new(array![[1.0, 2.0], [3.0, 4.0]].into_dyn());
+        let b = Tensor::<Rank2<S<2>, S<2>>>::new(array![[5.0, 6.0], [7.0, 8.0]].into_dyn());
+
+        // Stack along axis 1 (creating a 2x2x2 tensor)
+        let c: Tensor<(S<2>, S<2>, S<2>)> = stack(vec![a.clone(), b.clone()], 1);
+
+        let expected = array![[[1.0, 2.0], [5.0, 6.0]], [[3.0, 4.0], [7.0, 8.0]]].into_dyn();
+        assert_eq!(c.data(), expected);
+
+        // Test backward
+        let upstream_grad = array![[[0.1, 0.2], [0.3, 0.4]], [[0.5, 0.6], [0.7, 0.8]]].into_dyn();
+        c.build_graph();
+        c.backward_internal(upstream_grad);
+
+        // Verify gradients for `a`
+        let expected_a_grad = array![[0.1, 0.2], [0.5, 0.6]].into_dyn();
+        assert_eq!(a.grad().unwrap(), expected_a_grad);
+
+        // Verify gradients for `b`
+        let expected_b_grad = array![[0.3, 0.4], [0.7, 0.8]].into_dyn();
+        assert_eq!(b.grad().unwrap(), expected_b_grad);
+    }
+
+    #[test]
     fn test_stack_backward_gradients() {
         // Test stacking along axis 0 (vertical stack)
         let a =
