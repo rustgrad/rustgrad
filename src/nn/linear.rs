@@ -1,5 +1,4 @@
 use crate::dimensions::Dimension;
-use crate::dimensions::DynamicShape;
 use crate::ops::matmul::MatMul;
 use crate::ops::max;
 use crate::tensor::Tensor;

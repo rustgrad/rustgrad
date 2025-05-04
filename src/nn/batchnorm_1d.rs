@@ -1,4 +1,4 @@
-use crate::dimensions::{Dimension, DynamicShape};
+use crate::dimensions::Dimension;
 use crate::tensor::Tensor;
 
 #[derive(Debug, Clone)]

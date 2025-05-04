@@ -1,4 +1,4 @@
-use crate::dimensions::{Dimension, DynamicShape};
+use crate::dimensions::Dimension;
 use crate::nn::BatchNorm1d;
 use crate::tensor::Tensor;
 

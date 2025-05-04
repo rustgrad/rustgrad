@@ -1,4 +1,3 @@
-use crate::dimensions::DynamicShape;
 use crate::dimensions::*;
 use crate::tensor::Tensor;
 

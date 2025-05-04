@@ -151,7 +151,7 @@ fn normalize_features(features: &mut Array2<f32>) -> (Vec<f32>, Vec<f32>) {
         stds.push(if std_dev < 1e-6 { 1.0 } else { std_dev });
 
         // Normalize the column
-        for mut val in features.column_mut(i) {
+        for val in features.column_mut(i) {
             *val = (*val - mean) / stds[i];
         }
     }
