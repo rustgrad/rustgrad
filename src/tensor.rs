@@ -110,11 +110,9 @@ impl<S: Shape> Tensor<S> {
         assert!(self.container.borrow().array.dim() == grad.dim());
         {
             let mut data_container = self.container.deref().borrow_mut();
-            let new_grad = data_container
-                .grad
-                .as_ref()
-                .unwrap_or(&Array::zeros(self.shape()))
-                + grad;
+
+            let shape = data_container.array.shape().to_vec();
+            let new_grad = data_container.grad.as_ref().unwrap_or(&Array::zeros(shape)) + grad;
             data_container.grad = Some(new_grad);
             data_container.num_consumers -= 1;
             if data_container.num_consumers > 0 {
