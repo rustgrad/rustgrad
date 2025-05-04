@@ -1,6 +1,7 @@
 pub mod array_shape;
 pub mod data;
 pub mod dimensions;
+pub mod experiments;
 pub mod nam;
 pub mod nn;
 pub mod ops;

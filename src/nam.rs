@@ -73,18 +73,22 @@ impl<DHidden: Dimension, const NUM_FEATURES: usize> NAM<DHidden, NUM_FEATURES> {
             .flatten()
             .collect();
     }
+
+    // Add a method to access the shape functions
+    pub fn shape_functions(&self) -> &Vec<ShapeFunction<DHidden>> {
+        &self.shape_functions
+    }
 }
 
 #[test]
 fn test_nam_learns_sum_function() {
     use crate::data::*;
-    use crate::dimensions::S;
     use crate::dimensions::Rank1;
+    use crate::dimensions::S;
     use crate::nam::NAM;
     use crate::optim::adam::AdamOptimizer;
     use crate::optim::optimizer::Optimizer;
     use crate::tensor::Tensor;
-    
 
     use crate::data::labeled_dataset::LabeledTensorDataLoader;
     use crate::data::loader::DataLoaderExt as _;
