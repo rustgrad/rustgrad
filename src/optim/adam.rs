@@ -1,3 +1,8 @@
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
+    IntoParallelRefMutIterator, ParallelIterator,
+};
+
 use crate::{optim::optimizer::Optimizer, tensor::Tensor};
 
 pub(crate) struct AdamOptimizer {
@@ -68,17 +73,48 @@ impl AdamOptimizer {
 impl Optimizer for AdamOptimizer {
     fn step(&mut self) {
         self.t += 1;
-        for (i, param) in self.parameters.iter().enumerate() {
-            let grad = param.grad().expect("Grad not calculated.");
-            self.m[i] = self.beta1 * &self.m[i] + (1.0 - self.beta1) * &grad;
-            self.v[i] = self.beta2 * &self.v[i] + (1.0 - self.beta2) * grad.powi(2);
+        let grads = self
+            .parameters
+            .iter()
+            .map(|param| param.grad().expect("Grad not calculated."))
+            .collect::<Vec<_>>();
 
-            let m_hat = &self.m[i] / (1.0 - self.beta1.powi(self.t as i32));
-            let v_hat = &self.v[i] / (1.0 - self.beta2.powi(self.t as i32));
+        let grad_updates = grads
+            .into_par_iter()
+            .enumerate()
+            .map(|(i, grad)| {
+                let m = &self.m[i];
+                let v = &self.v[i];
+                let beta1 = self.beta1;
+                let beta2 = self.beta2;
+                let epsilon = self.epsilon;
+                let t = self.t as f32;
 
-            let update = -self.lr * m_hat / (v_hat.sqrt() + self.epsilon);
-            param.add_value(update);
-        }
+                // Update first moment
+                let m_t = beta1 * m + (1.0 - beta1) * &grad;
+
+                // Update second moment
+                let v_t = beta2 * v + (1.0 - beta2) * grad.powi(2);
+
+                // Compute bias-corrected first moment
+                let m_hat = m_t / (1.0 - beta1.powf(t));
+
+                // Compute bias-corrected second moment
+                let v_hat = v_t / (1.0 - beta2.powf(t));
+
+                // Compute update
+                -self.lr * m_hat / (v_hat.sqrt() + epsilon)
+            })
+            .collect::<Vec<_>>();
+
+        // Apply updates to parameters
+        grad_updates
+            .into_iter()
+            .enumerate()
+            .for_each(|(i, update)| {
+                let param = &self.parameters[i];
+                param.add_value(update);
+            });
     }
 
     fn zero_grad(&self) {

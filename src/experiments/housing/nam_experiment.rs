@@ -22,7 +22,7 @@ const BATCH_SIZE: usize = 16;
 const HIDDEN_SIZE: usize = 32;
 const NUM_LAYERS: usize = 3;
 const LEARNING_RATE: f32 = 0.0005;
-const NUM_EPOCHS: usize = 10;
+const NUM_EPOCHS: usize = 1;
 
 #[derive(Debug, Deserialize)]
 struct HousingRecord {
@@ -380,41 +380,7 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
 
     // Plot training loss
     println!("Plotting training loss...");
-    {
-        let path = plots_dir.join("training_loss.png");
-        let root_backend = BitMapBackend::new(&path, (800, 600));
-        let root = root_backend.into_drawing_area();
-        root.fill(&WHITE)?;
-
-        let min_y = train_losses.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-        let max_y = train_losses
-            .iter()
-            .fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-        let padding_y = (max_y - min_y) * 0.1;
-
-        let mut chart = ChartBuilder::on(&root)
-            .caption("Training Loss", ("sans-serif", 30).into_font())
-            .margin(10)
-            .x_label_area_size(30)
-            .y_label_area_size(30)
-            .build_cartesian_2d(0..NUM_EPOCHS, (min_y - padding_y)..(max_y + padding_y))?;
-
-        chart
-            .configure_mesh()
-            .x_desc("Epoch")
-            .y_desc("Loss (MSE)")
-            .draw()?;
-
-        chart.draw_series(LineSeries::new(
-            (0..NUM_EPOCHS)
-                .zip(train_losses.iter())
-                .map(|(x, &y)| (x, y)),
-            &RED,
-        ))?;
-
-        root.present()?;
-    }
-
+    plot_training_loss(train_losses, &plots_dir);
     // Plot individual shape functions
     println!("Plotting shape functions...");
     let feature_names = [
@@ -490,6 +456,41 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn plot_training_loss(train_losses: Vec<f32>, plots_dir: &PathBuf) -> Result<(), Box<dyn Error>> {
+    let path = plots_dir.join("training_loss.png");
+    let root_backend = BitMapBackend::new(&path, (800, 600));
+    let root = root_backend.into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let min_y = train_losses.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+    let max_y = train_losses
+        .iter()
+        .fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+    let padding_y = (max_y - min_y) * 0.1;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Training Loss", ("sans-serif", 30).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0..NUM_EPOCHS, (min_y - padding_y)..(max_y + padding_y))?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Epoch")
+        .y_desc("Loss (MSE)")
+        .draw()?;
+
+    chart.draw_series(LineSeries::new(
+        (0..NUM_EPOCHS)
+            .zip(train_losses.iter())
+            .map(|(x, &y)| (x, y)),
+        &RED,
+    ))?;
+
+    root.present()?;
+    Ok(())
+}
 // Creates a binary to run the experiment
 pub fn main() -> Result<(), Box<dyn Error>> {
     run_housing_nam_experiment()
