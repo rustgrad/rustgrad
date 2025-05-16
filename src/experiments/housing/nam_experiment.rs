@@ -19,10 +19,10 @@ use crate::tensor::Tensor;
 // Excluding 'ocean_proximity' which is categorical
 const NUM_FEATURES: usize = 8;
 const BATCH_SIZE: usize = 16;
-const HIDDEN_SIZE: usize = 32;
+const HIDDEN_SIZE: usize = 64;
 const NUM_LAYERS: usize = 3;
 const LEARNING_RATE: f32 = 0.0005;
-const NUM_EPOCHS: usize = 1;
+const NUM_EPOCHS: usize = 10;
 
 #[derive(Debug, Deserialize)]
 struct HousingRecord {
@@ -348,7 +348,8 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
 
     // Training loop
     println!("Starting training for {} epochs...", NUM_EPOCHS);
-    let mut train_losses = Vec::with_capacity(NUM_EPOCHS);
+    let mut train_losses = Vec::with_capacity(NUM_EPOCHS * 100);
+    let mut train_epoch_losses = Vec::with_capacity(NUM_EPOCHS * 100);
 
     for epoch in 0..NUM_EPOCHS {
         let mut epoch_loss = 0.0;
@@ -366,6 +367,10 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
 
             let loss_val = loss.data().into_flat()[0];
             epoch_loss += loss_val;
+            train_losses.push(loss_val);
+            if epoch == 0 && _idx == 3 {
+                train_epoch_losses.push(epoch_loss / 3.0);
+            }
             batches += 1;
 
             opt.zero_grad();
@@ -374,13 +379,14 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
         }
 
         let avg_loss = epoch_loss / batches as f32;
-        train_losses.push(avg_loss);
+        train_epoch_losses.push(avg_loss);
         println!("Epoch {}/{}, Loss: {:.4}", epoch + 1, NUM_EPOCHS, avg_loss);
     }
 
     // Plot training loss
     println!("Plotting training loss...");
-    plot_training_loss(train_losses, &plots_dir);
+    plot_training_loss(train_losses, &plots_dir, "housing_")?;
+    plot_training_loss(train_epoch_losses, &plots_dir, "housing_epoch_")?;
     // Plot individual shape functions
     println!("Plotting shape functions...");
     let feature_names = [
@@ -455,9 +461,12 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
-fn plot_training_loss(train_losses: Vec<f32>, plots_dir: &PathBuf) -> Result<(), Box<dyn Error>> {
-    let path = plots_dir.join("training_loss.png");
+fn plot_training_loss(
+    train_losses: Vec<f32>,
+    plots_dir: &PathBuf,
+    prefix: &str,
+) -> Result<(), Box<dyn Error>> {
+    let path = plots_dir.join(prefix.to_string() + "training_loss.png");
     let root_backend = BitMapBackend::new(&path, (800, 600));
     let root = root_backend.into_drawing_area();
     root.fill(&WHITE)?;
@@ -466,14 +475,16 @@ fn plot_training_loss(train_losses: Vec<f32>, plots_dir: &PathBuf) -> Result<(),
     let max_y = train_losses
         .iter()
         .fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-    let padding_y = (max_y - min_y) * 0.1;
 
     let mut chart = ChartBuilder::on(&root)
         .caption("Training Loss", ("sans-serif", 30).into_font())
         .margin(10)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(0..NUM_EPOCHS, (min_y - padding_y)..(max_y + padding_y))?;
+        .build_cartesian_2d(
+            (0..train_losses.len()).log_scale(),
+            ((min_y * 0.7)..(max_y * 1.2)).log_scale(),
+        )?;
 
     chart
         .configure_mesh()
@@ -482,7 +493,7 @@ fn plot_training_loss(train_losses: Vec<f32>, plots_dir: &PathBuf) -> Result<(),
         .draw()?;
 
     chart.draw_series(LineSeries::new(
-        (0..NUM_EPOCHS)
+        (0..train_losses.len())
             .zip(train_losses.iter())
             .map(|(x, &y)| (x, y)),
         &RED,
