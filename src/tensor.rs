@@ -1,6 +1,7 @@
 use ndarray::{Array, IxDyn};
-use ndarray_rand::rand_distr::StandardNormal;
+use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
+use rand::prelude::Distribution;
 use std::{cell::RefCell, fmt::Debug, ops::Deref, rc::Rc};
 
 use crate::array_shape::ArrayShape;
@@ -54,12 +55,20 @@ impl<S: Shape> Tensor<S> {
         let shape = ArrayShape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
-    pub fn new_random(mean: f32, std: f32) -> Tensor<S> {
+    pub fn new_random<IdS>(mean: f32, std: f32, distribution: IdS) -> Tensor<S>
+    where
+        IdS: Distribution<f32>,
+    {
         let dims = S::shape().dims.clone();
         let shape = ArrayShape { dims };
-        let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, StandardNormal);
+        let mut value: Array<f32, IxDyn> = Array::<f32, IxDyn>::random(shape, distribution);
         value = value * std + mean;
         return Tensor::new(value);
+    }
+
+    pub fn new_he_initialization(fan_in: usize) -> Tensor<S> {
+        let std = (2.0 / fan_in as f32).sqrt();
+        return Tensor::new_random(0.0, std, Uniform::new(-0.5, 0.5));
     }
 }
 

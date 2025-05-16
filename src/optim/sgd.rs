@@ -34,6 +34,7 @@ impl Optimizer for SGDOptimizer {
 mod tests {
     use crate::{dimensions::S, nn::MLP};
     use ndarray::Array;
+    use ndarray_rand::rand_distr::StandardNormal;
 
     use super::*;
 
@@ -47,7 +48,7 @@ mod tests {
         let mut accumulated_loss = 0.0;
         for i in 0..epochs {
             optimiser.zero_grad();
-            let input: Tensor<(S<4>, S<3>)> = Tensor::new_random(0.0, 1.0);
+            let input: Tensor<(S<4>, S<3>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
             let forwarded = mlp.forward(input.clone());
             let expected_output = input.data();
             let expected_output = expected_output[0] - expected_output[1];

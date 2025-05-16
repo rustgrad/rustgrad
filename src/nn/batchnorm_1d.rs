@@ -1,3 +1,5 @@
+use ndarray_rand::rand_distr::StandardNormal;
+
 use crate::dimensions::Dimension;
 use crate::tensor::Tensor;
 
@@ -14,10 +16,10 @@ pub struct BatchNorm1d<DIn: Dimension> {
 
 impl<DIn: Dimension> BatchNorm1d<DIn> {
     pub fn new(momentum: f32, eps: f32) -> BatchNorm1d<DIn> {
-        let gamma = Tensor::new_random(1.0, 0.0); // Init gamma = 1
-        let beta = Tensor::new_random(0.0, 0.0); // Init beta = 0
-        let running_mean = Tensor::new_random(0.0, 0.0);
-        let running_var = Tensor::new_random(1.0, 0.0);
+        let gamma = Tensor::new_random(1.0, 0.0, StandardNormal); // Init gamma = 1
+        let beta = Tensor::new_random(0.0, 0.0, StandardNormal); // Init beta = 0
+        let running_mean = Tensor::new_random(0.0, 0.0, StandardNormal);
+        let running_var = Tensor::new_random(1.0, 0.0, StandardNormal);
 
         Self {
             gamma,

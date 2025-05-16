@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use ndarray_rand::rand_distr::StandardNormal;
+
 use crate::{
     dimensions::S,
     nn::MLP,
@@ -19,8 +21,8 @@ pub fn run_adam_benchmark() {
     let learning_rates = vec![0.1, 0.01, 0.001, 0.0001];
 
     // Create random input and expected output tensors
-    let input: Tensor<(S<64>, S<10>)> = Tensor::new_random(0.0, 1.0);
-    let expected_output: Tensor<(S<64>, S<1>)> = Tensor::new_random(0.0, 1.0);
+    let input: Tensor<(S<64>, S<10>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
+    let expected_output: Tensor<(S<64>, S<1>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
 
     println!("\nBenchmarking with different learning rates:");
     for &lr in &learning_rates {
@@ -89,8 +91,8 @@ where
     let mut optimizer = AdamOptimizer::new_with_defaults(lr, mlp.parameters());
 
     // Create random input and expected output tensors
-    let input: Tensor<(S<64>, S<10>)> = Tensor::new_random(0.0, 1.0);
-    let expected_output: Tensor<(S<64>, S<1>)> = Tensor::new_random(0.0, 1.0);
+    let input: Tensor<(S<64>, S<10>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
+    let expected_output: Tensor<(S<64>, S<1>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
 
     // Measure time for 50 optimization steps
     let iterations = 50;

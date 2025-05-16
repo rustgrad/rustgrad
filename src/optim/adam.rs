@@ -105,6 +105,8 @@ impl Optimizer for AdamOptimizer {
 
 #[cfg(test)]
 mod tests {
+    use ndarray_rand::rand_distr::StandardNormal;
+
     use super::*;
     use crate::{dimensions::S, nn::MLP};
 
@@ -112,9 +114,9 @@ mod tests {
     fn test_adam_optimizer() {
         let mlp: MLP<S<3>, S<2>, S<100>, 1> = MLP::new();
         let mut optimiser = AdamOptimizer::new(0.001, 0.9, 0.999, 1e-8, mlp.parameters());
-        let input: Tensor<(S<4>, S<3>)> = Tensor::new_random(0.0, 1.0);
+        let input: Tensor<(S<4>, S<3>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
         let forwarded = mlp.forward(input.clone());
-        let expected_output: Tensor<(S<4>, S<2>)> = Tensor::new_random(0.0, 1.0);
+        let expected_output: Tensor<(S<4>, S<2>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
         let mut loss = -expected_output.clone() + forwarded.clone();
         loss = loss.clone() * loss.clone();
         loss.backward();

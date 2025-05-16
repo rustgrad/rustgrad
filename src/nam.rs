@@ -1,5 +1,7 @@
 use std::usize;
 
+use ndarray_rand::rand_distr::StandardNormal;
+
 use crate::dimensions::{Dimension, DynamicShape};
 
 use crate::dimensions::S;
@@ -101,7 +103,7 @@ fn test_nam_learns_sum_function() {
         Vec::new();
 
     for i in 0..100 {
-        let input = Tensor::new_random(0.0, 1.0);
+        let input = Tensor::new_random(0.0, 1.0, StandardNormal);
         let label: Tensor<Rank0> = input.sum();
         labeled_data.push(LabeledTensorSample {
             input: input,

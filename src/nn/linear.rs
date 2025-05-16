@@ -1,3 +1,6 @@
+use ndarray_rand::rand_distr::StandardNormal;
+use rand::distributions::Uniform;
+
 use crate::dimensions::Dimension;
 use crate::ops::matmul::MatMul;
 use crate::ops::max;
@@ -11,9 +14,8 @@ pub struct LinearLayer<DIn: Dimension, D_OUT: Dimension> {
 }
 impl<DIn: Dimension, D_OUT: Dimension> LinearLayer<DIn, D_OUT> {
     pub fn new(non_linearity: bool) -> LinearLayer<DIn, D_OUT> {
-        let bias = Tensor::new_random(0.0, 0.00);
-        let std = (2.0 / (DIn::default().size() as f32)).sqrt();
-        let weight = Tensor::new_random(0.0, std);
+        let bias = Tensor::new_random(0.0, 0.0000000001, Uniform::new(0.0, 1.0));
+        let weight = Tensor::new_he_initialization(DIn::default().size());
         LinearLayer {
             bias,
             weight,
