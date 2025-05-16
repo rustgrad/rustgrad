@@ -69,30 +69,22 @@ impl AdamOptimizer {
     pub fn update_lr(&mut self, new_lr: f32) {
         self.lr = new_lr;
     }
-    #[inline(always)]
-    fn _calculate_update_value(&mut self, idx: usize, param: &Tensor) -> ndarray::ArrayD<f32> {
-        let container = param.container.borrow();
-        let grad = container.grad.as_ref().expect("Gradient is None");
-        self.m[idx] = self.beta1 * &self.m[idx] + (1.0 - self.beta1) * grad;
-        self.v[idx] = self.beta2 * &self.v[idx] + (1.0 - self.beta2) * grad.powi(2);
-
-        let m_hat = &self.m[idx] / (1.0 - self.current_beta1);
-        let v_hat = &self.v[idx] / (1.0 - self.current_beta2);
-
-        return -self.lr * m_hat / (v_hat.sqrt() + self.epsilon);
-    }
-    #[inline(always)]
-    fn _update_betas(&mut self) {
-        self.current_beta1 = self.current_beta1 * self.beta1;
-        self.current_beta2 = self.current_beta2 * self.beta2;
-    }
 }
 
 impl Optimizer for AdamOptimizer {
     fn step(&mut self) {
-        self._update_betas();
-        for (i, param) in self.parameters.clone().into_iter().enumerate() {
-            param.add_value(self._calculate_update_value(i, &param));
+        self.current_beta1 = self.current_beta1 * self.beta1;
+        self.current_beta2 = self.current_beta2 * self.beta2;
+        for (idx, param) in self.parameters.iter().enumerate() {
+            let grad = param.grad().expect("Gradient is None");
+            self.m[idx] = self.beta1 * &self.m[idx] + (1.0 - self.beta1) * grad.clone();
+            self.v[idx] = self.beta2 * &self.v[idx] + (1.0 - self.beta2) * grad.powi(2);
+
+            let m_hat = &self.m[idx] / (1.0 - self.current_beta1);
+            let v_hat = &self.v[idx] / (1.0 - self.current_beta2);
+
+            let update = -self.lr * m_hat / (v_hat.sqrt() + self.epsilon);
+            param.add_value(update);
         }
     }
 
