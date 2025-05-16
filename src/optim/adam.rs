@@ -2,7 +2,9 @@ use crate::{optim::optimizer::Optimizer, tensor::Tensor};
 
 pub(crate) struct AdamOptimizer {
     lr: f32,
+    current_beta1: f32,
     beta1: f32,
+    current_beta2: f32,
     beta2: f32,
     epsilon: f32,
     parameters: Vec<Tensor>,
@@ -29,7 +31,9 @@ impl AdamOptimizer {
             .collect();
         AdamOptimizer {
             lr,
+            current_beta1: beta1,
             beta1,
+            current_beta2: beta2,
             beta2,
             epsilon,
             parameters,
@@ -50,7 +54,9 @@ impl AdamOptimizer {
             .collect();
         AdamOptimizer {
             lr,
+            current_beta1: 0.9,
             beta1: 0.9,
+            current_beta2: 0.999,
             beta2: 0.999,
             epsilon: 1e-8,
             parameters,
@@ -67,14 +73,15 @@ impl AdamOptimizer {
 
 impl Optimizer for AdamOptimizer {
     fn step(&mut self) {
-        self.t += 1;
+        self.current_beta1 = self.current_beta1 * self.beta1;
+        self.current_beta2 = self.current_beta2 * self.beta2;
         for (i, param) in self.parameters.iter().enumerate() {
             let grad = param.grad().expect("Grad not calculated.");
             self.m[i] = self.beta1 * &self.m[i] + (1.0 - self.beta1) * &grad;
             self.v[i] = self.beta2 * &self.v[i] + (1.0 - self.beta2) * grad.powi(2);
 
-            let m_hat = &self.m[i] / (1.0 - self.beta1.powi(self.t as i32));
-            let v_hat = &self.v[i] / (1.0 - self.beta2.powi(self.t as i32));
+            let m_hat = &self.m[i] / (1.0 - self.current_beta1);
+            let v_hat = &self.v[i] / (1.0 - self.current_beta2);
 
             let update = -self.lr * m_hat / (v_hat.sqrt() + self.epsilon);
             param.add_value(update);
