@@ -6,6 +6,7 @@ use csv::ReaderBuilder;
 use ndarray::{Array, Array1, Array2, IxDyn};
 use plotters::prelude::*;
 use serde::Deserialize;
+use tensorboard_rs::summary_writer::SummaryWriter;
 
 use crate::data::labeled_dataset::{LabeledTensorDataLoader, LabeledTensorSample};
 use crate::data::loader::DataLoaderExt;
@@ -21,7 +22,7 @@ const NUM_FEATURES: usize = 8;
 const BATCH_SIZE: usize = 16;
 const HIDDEN_SIZE: usize = 64;
 const NUM_LAYERS: usize = 3;
-const LEARNING_RATE: f32 = 0.0005;
+const LEARNING_RATE: f32 = 0.0001;
 const NUM_EPOCHS: usize = 10;
 
 #[derive(Debug, Deserialize)]
@@ -315,6 +316,7 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
 
     println!("Creating NAM model...");
     let model = NAM::<S<HIDDEN_SIZE>, NUM_FEATURES>::new(NUM_LAYERS);
+    let mut writer = SummaryWriter::new(&("./logdir".to_string()));
 
     println!("Setting up dataloader and optimizer...");
     let mut dataloader: LabeledTensorDataLoader<(S<NUM_FEATURES>,), (S<1>,), S<BATCH_SIZE>> =
@@ -349,13 +351,14 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
     // Training loop
     println!("Starting training for {} epochs...", NUM_EPOCHS);
     let mut train_losses = Vec::with_capacity(NUM_EPOCHS * 100);
-    let mut train_epoch_losses = Vec::with_capacity(NUM_EPOCHS * 100);
+    let mut train_epoch_losses = Vec::with_capacity(NUM_EPOCHS);
+    let mut total_steps = 0;
 
     for epoch in 0..NUM_EPOCHS {
         let mut epoch_loss = 0.0;
-        let mut batches = 0;
+        let mut batches: u64 = 0;
 
-        for (_idx, batch) in dataloader.iter_shuffled(epoch as u64).enumerate() {
+        for (_idx, batch) in dataloader.iter_shuffled(epoch as u64 + 1).enumerate() {
             let x = batch.input;
             let y_true = batch.label;
 
@@ -368,20 +371,20 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
             let loss_val = loss.data().into_flat()[0];
             epoch_loss += loss_val;
             train_losses.push(loss_val);
-            if epoch == 0 && _idx == 3 {
-                train_epoch_losses.push(epoch_loss / 3.0);
-            }
+            writer.add_scalar("loss", loss_val, total_steps);
             batches += 1;
+            total_steps += 1;
 
             opt.zero_grad();
             loss.backward();
             opt.step();
         }
-
+        opt.update_lr(opt.lr() * 0.5);
         let avg_loss = epoch_loss / batches as f32;
         train_epoch_losses.push(avg_loss);
         println!("Epoch {}/{}, Loss: {:.4}", epoch + 1, NUM_EPOCHS, avg_loss);
     }
+    writer.flush();
 
     // Plot training loss
     println!("Plotting training loss...");

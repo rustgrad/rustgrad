@@ -16,6 +16,7 @@ csv = "1.3.0"
 plotters = { version = "0.3.7", features = ["ab_glyph", "fontconfig-dlopen"] }
 serde = { version = "1.0", features = ["derive"] }
 rayon = "1.10.0"
+tensorboard-rs = "0.5.9"
 
 [[bin]]
 name = "housing_nam"
@@ -24,3 +25,20 @@ path = "src/bin/housing_nam.rs"
 [[bin]]
 name = "adam_benchmark"
 path = "src/bin/adam_benchmark.rs"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+debug = false
+overflow-checks = false
+panic = "abort"
+
+[profile.dev]
+opt-level = 3
+debug = true
+overflow-checks = true
+panic = "unwind"
+
+
+

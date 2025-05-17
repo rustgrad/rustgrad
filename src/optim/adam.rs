@@ -42,6 +42,9 @@ impl AdamOptimizer {
             t: 0,
         }
     }
+    pub fn lr(&self) -> f32 {
+        self.lr
+    }
 
     pub fn new_with_defaults(lr: f32, parameters: Vec<Tensor>) -> AdamOptimizer {
         let m = parameters
