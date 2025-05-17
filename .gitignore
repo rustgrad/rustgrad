@@ -1,3 +1,9 @@
 /target
 *.data
 **/*.venv/
+
+*.old
+
+logdir/
+
+*.svg
