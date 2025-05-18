@@ -73,12 +73,6 @@ pub trait Dimension:
     fn from_size(size: usize) -> Self;
 }
 
-/// Represents a single dimension where all
-/// instances are guaranteed to be the same size at compile time.
-pub trait ConstDim: Default + Dimension {
-    const SIZE: usize;
-}
-
 impl Dimension for usize {
     #[inline(always)]
     fn size(&self) -> usize {
@@ -104,16 +98,6 @@ impl<const M: usize> Dimension for S<M> {
     }
 }
 
-impl<const M: usize> ConstDim for S<M> {
-    const SIZE: usize = M;
-}
-
-impl<const N: usize> core::ops::Add<S<N>> for usize {
-    type Output = usize;
-    fn add(self, _: S<N>) -> Self::Output {
-        self.size() + N
-    }
-}
 impl<const N: usize> core::ops::Add<usize> for S<N> {
     type Output = usize;
     fn add(self, rhs: usize) -> Self::Output {
