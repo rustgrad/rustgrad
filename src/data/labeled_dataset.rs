@@ -1,5 +1,5 @@
 use crate::{
-    dimensions::{Dimension, DynamicShape, Shape},
+    dimensions::{Dimension, Shape, UnkownShape},
     ops::TensorStack,
 };
 use std::marker::PhantomData;
@@ -26,8 +26,8 @@ impl<B: Dimension, I: Dimension, J: Dimension, K: Dimension> BatchCompatible<(I,
 }
 
 // Allow dynamic shapes as a fallback
-impl BatchCompatible<DynamicShape> for DynamicShape {
-    type Output = DynamicShape;
+impl BatchCompatible<UnkownShape> for UnkownShape {
+    type Output = UnkownShape;
 }
 
 #[derive(Debug, Clone)]

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use std::rc::Rc;
 
-use crate::dimensions::{DynamicShape, Shape};
+use crate::dimensions::{Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 
@@ -37,8 +37,8 @@ impl<S: Shape> Operation<S> for DivScalar<S> {
     fn build_graph(&self) {
         self.input.build_graph();
     }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(DivScalar::<DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(DivScalar::<UnkownShape> {
             input: self.input.clone_into_dynamic(),
             scalar: self.scalar,
         }))
@@ -74,8 +74,8 @@ impl<S: Shape> Operation<S> for InverseDivScalar<S> {
     fn build_graph(&self) {
         self.input.build_graph();
     }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(InverseDivScalar::<DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(InverseDivScalar::<UnkownShape> {
             input: self.input.clone_into_dynamic(),
             scalar: self.scalar,
         }))

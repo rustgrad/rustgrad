@@ -8,7 +8,7 @@ use itertools::{
     Itertools,
 };
 
-use crate::dimensions::{DynamicShape, Shape};
+use crate::dimensions::{Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 
@@ -96,8 +96,8 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Broadcast<SIn, SOut> {
         self.input.build_graph();
     }
 
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(Broadcast::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(Broadcast::<UnkownShape, UnkownShape> {
             input: self.input.clone_into_dynamic(),
             phantom_data: PhantomData,
         }))

@@ -1,7 +1,7 @@
 use std::{cell::RefCell, ops::Neg, rc::Rc};
 
 use crate::{
-    dimensions::{DynamicShape, Shape},
+    dimensions::{Shape, UnkownShape},
     tensor::Tensor,
 };
 
@@ -35,8 +35,8 @@ impl<S: Shape> Operation<S> for TensorNeg<S> {
     fn build_graph(&self) {
         self.tensor.build_graph();
     }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorNeg::<DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(TensorNeg::<UnkownShape> {
             tensor: self.tensor.clone_into_dynamic(),
         }))
     }

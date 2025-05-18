@@ -2,7 +2,7 @@ use std::usize;
 
 use ndarray_rand::rand_distr::StandardNormal;
 
-use crate::dimensions::{Dimension, DynamicShape};
+use crate::dimensions::{Dimension, UnkownShape};
 
 use crate::dimensions::S;
 use crate::nn::LinearLayer;
@@ -32,7 +32,7 @@ impl<DHidden: Dimension> ShapeFunction<DHidden> {
         }
         self.last_layer.forward(x)
     }
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor<UnkownShape>> {
         let hidden_params = self
             .hidden_layers
             .iter()
@@ -67,7 +67,7 @@ impl<DHidden: Dimension, const NUM_FEATURES: usize> NAM<DHidden, NUM_FEATURES> {
         }
         return result;
     }
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor<UnkownShape>> {
         return self
             .shape_functions
             .iter()

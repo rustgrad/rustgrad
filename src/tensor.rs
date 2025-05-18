@@ -6,7 +6,7 @@ use std::{cell::RefCell, fmt::Debug, ops::Deref, rc::Rc};
 
 use crate::array_shape::ArrayShape;
 use crate::dimensions::{
-    Dimension, Dynamic, DynamicShape, Rank0, Rank1, Rank2, Rank3, Rank4, Shape, S,
+    Dimension, Dynamic, Rank0, Rank1, Rank2, Rank3, Rank4, Shape, UnkownShape, S,
 };
 use crate::ops::Operation;
 
@@ -26,8 +26,8 @@ impl DataContainer {
 pub trait SwapLastDims {
     type Output: Shape;
 }
-impl SwapLastDims for DynamicShape {
-    type Output = DynamicShape;
+impl SwapLastDims for UnkownShape {
+    type Output = UnkownShape;
 }
 impl<M: Dimension, N: Dimension> SwapLastDims for Rank2<M, N> {
     type Output = Rank2<N, M>;
@@ -44,7 +44,7 @@ impl<P: Dimension, O: Dimension, N: Dimension, M: Dimension> SwapLastDims for Ra
 // }
 
 #[derive(Debug, Clone)]
-pub struct Tensor<S: Shape = DynamicShape> {
+pub struct Tensor<S: Shape = UnkownShape> {
     pub container: Rc<RefCell<DataContainer>>,
     pub prev_op: Option<Rc<RefCell<dyn Operation<S>>>>,
 }
@@ -182,8 +182,8 @@ pub trait DimCompatible<Rhs: Dimension> {
 pub trait ShapeCompatible<Rhs: Shape> {
     type Output: Shape;
 }
-impl ShapeCompatible<DynamicShape> for DynamicShape {
-    type Output = DynamicShape;
+impl ShapeCompatible<UnkownShape> for UnkownShape {
+    type Output = UnkownShape;
 }
 impl ShapeCompatible<Rank0> for Rank0 {
     type Output = Rank0;

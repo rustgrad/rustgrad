@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::array_shape::ArrayShape;
-use crate::dimensions::{DynamicShape, Shape};
+use crate::dimensions::{Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 
@@ -45,8 +45,8 @@ impl<S: Shape, K: Shape> Operation<K> for TensorReshape<S, K> {
     fn build_graph(&self) {
         self.tensor.build_graph();
     }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorReshape::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(TensorReshape::<UnkownShape, UnkownShape> {
             tensor: self.tensor.clone_into_dynamic(),
             input_shape: self.input_shape.clone(),
             ph: PhantomData,

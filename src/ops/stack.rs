@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use ndarray::{Array, Axis, IxDyn};
 
-use crate::dimensions::{DynamicShape, Shape};
+use crate::dimensions::{Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 
@@ -109,10 +109,10 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for TensorStack<SIn, SOut> {
         }
     }
 
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
         let dynamic_inputs = self.inputs.iter().map(|t| t.clone_into_dynamic()).collect();
 
-        Rc::new(RefCell::new(TensorStack::<DynamicShape, DynamicShape> {
+        Rc::new(RefCell::new(TensorStack::<UnkownShape, UnkownShape> {
             inputs: dynamic_inputs,
             axis: self.axis,
             phantom_data: PhantomData,

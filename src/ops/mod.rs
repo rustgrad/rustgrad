@@ -28,7 +28,7 @@ pub mod max;
 pub use max::max;
 
 use crate::{
-    dimensions::{DynamicShape, Rank1, Rank2, Shape, S},
+    dimensions::{Rank1, Rank2, Shape, UnkownShape, S},
     tensor::Tensor,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -37,7 +37,7 @@ pub trait Operation<S: Shape>: std::fmt::Debug {
     fn backward(&self, output: &Tensor<S>);
     fn zero_graph(&self);
     fn build_graph(&self);
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>>;
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>>;
 }
 pub fn test_fn() {
     let tensor = Tensor::<Rank2<S<2>, S<4>>>::zero();

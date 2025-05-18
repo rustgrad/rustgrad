@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::dimensions::{DynamicShape, Shape};
+use crate::dimensions::{Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 use ndarray::Axis;
@@ -81,8 +81,8 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Var<SIn, SOut> {
         self.input.build_graph();
     }
 
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(Var::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(Var::<UnkownShape, UnkownShape> {
             input: self.input.clone_into_dynamic(),
             axis: self.axis,
             keepdims: self.keepdims,

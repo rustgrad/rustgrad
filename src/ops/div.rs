@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::ops::Div;
 use std::rc::Rc;
 
-use crate::dimensions::{DynamicShape, Shape};
+use crate::dimensions::{Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::{ShapeCompatible, Tensor};
 
@@ -48,8 +48,8 @@ where
         self.lhs.build_graph();
         self.rhs.build_graph();
     }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorDiv::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(TensorDiv::<UnkownShape, UnkownShape> {
             lhs: self.lhs.clone_into_dynamic(),
             rhs: self.rhs.clone_into_dynamic(),
         }))

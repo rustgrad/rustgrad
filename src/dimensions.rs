@@ -50,8 +50,8 @@ pub trait Shape: Debug + Default + Clone + 'static {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct DynamicShape;
-impl Shape for DynamicShape {
+pub struct UnkownShape;
+impl Shape for UnkownShape {
     fn _shape(&self) -> ArrayShape {
         unimplemented!("there is no runtime information for dynamic shapes")
         // return None;
@@ -59,8 +59,8 @@ impl Shape for DynamicShape {
     fn shape() -> ArrayShape {
         unimplemented!("there is no runtime information for dynamic shapes")
     }
-    fn from_shape(shape: &[usize]) -> Self {
-        DynamicShape
+    fn from_shape(_shape: &[usize]) -> Self {
+        UnkownShape
     }
     const NUM_DIMS: usize = usize::MAX;
 }

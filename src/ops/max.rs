@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use ndarray::Array;
 
 use crate::{
-    dimensions::{DynamicShape, Shape},
+    dimensions::{Shape, UnkownShape},
     tensor::{ShapeCompatible, Tensor},
 };
 
@@ -75,8 +75,8 @@ where
         self.lhs.build_graph();
         self.rhs.build_graph();
     }
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorMax::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(TensorMax::<UnkownShape, UnkownShape> {
             lhs: self.lhs.clone_into_dynamic(),
             rhs: self.rhs.clone_into_dynamic(),
             take_from_a: self.take_from_a.clone(),

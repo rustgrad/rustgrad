@@ -1,7 +1,7 @@
 use ndarray::Array;
 use ndarray_rand::rand::{thread_rng, Rng};
 
-use crate::dimensions::{Dimension, DynamicShape, Shape};
+use crate::dimensions::{Dimension, Shape, UnkownShape};
 use crate::nn::{ts_mixer::TimeBatchNorm, LinearLayer};
 use crate::ops::max;
 use crate::tensor::{ShapeCompatible, Tensor};
@@ -113,7 +113,7 @@ impl<Dl: Dimension, Dc: Dimension, DOut: Dimension> FeatureMixing<Dl, Dc, DOut> 
         self.norm.forward(x_temp + x_project) // Residual + Norm
     }
 
-    pub fn parameters(&self) -> Vec<Tensor<DynamicShape>> {
+    pub fn parameters(&self) -> Vec<Tensor<UnkownShape>> {
         let mut params = vec![];
         params.extend(self.linear.parameters());
         params.extend(self.norm.parameters());

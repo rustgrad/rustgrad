@@ -5,11 +5,11 @@ use std::borrow::Borrow;
 
 use crate::array_shape::ArrayShape;
 use crate::dimensions::Dimension;
-use crate::dimensions::DynamicShape;
 use crate::dimensions::Rank2;
 use crate::dimensions::Rank3;
 use crate::dimensions::Rank4;
 use crate::dimensions::Shape;
+use crate::dimensions::UnkownShape;
 use crate::iter_range_par;
 use crate::ops::Operation;
 use crate::run_par;
@@ -44,8 +44,8 @@ where
 {
     type Output = (P, O, M, N);
 }
-impl MatCompatible<DynamicShape> for DynamicShape {
-    type Output = DynamicShape;
+impl MatCompatible<UnkownShape> for UnkownShape {
+    type Output = UnkownShape;
 }
 
 pub trait MatMul<S1: Shape, S2: Shape>
@@ -160,8 +160,8 @@ where
         self.rhs.build_graph();
     }
 
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(TensorMatMul::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(TensorMatMul::<UnkownShape, UnkownShape> {
             lhs: self.lhs.clone_into_dynamic(),
             rhs: self.rhs.clone_into_dynamic(),
         }))

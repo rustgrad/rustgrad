@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::dimensions::{DynamicShape, Rank0, Shape};
+use crate::dimensions::{Rank0, Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 use ndarray::{Array0, Axis, Ix0};
@@ -62,8 +62,8 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Sum<SIn, SOut> {
         self.input.build_graph();
     }
 
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        Rc::new(RefCell::new(Sum::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        Rc::new(RefCell::new(Sum::<UnkownShape, UnkownShape> {
             input: self.input.clone_into_dynamic(),
             axis: self.axis,
             phantom: PhantomData,

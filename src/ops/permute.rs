@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::dimensions::{DynamicShape, Shape};
+use crate::dimensions::{Shape, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 
@@ -44,8 +44,8 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for TensorPermute<SIn, SOut> {
         self.input.build_graph();
     }
 
-    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<DynamicShape>>> {
-        let operation = TensorPermute::<DynamicShape, DynamicShape> {
+    fn clone_into_dynamic(&self) -> Rc<RefCell<dyn Operation<UnkownShape>>> {
+        let operation = TensorPermute::<UnkownShape, UnkownShape> {
             input: self.input.clone_into_dynamic(),
             output: PhantomData,
             axes: self.axes.clone(),
