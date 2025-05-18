@@ -107,7 +107,7 @@ fn test_nam_learns_sum_function() {
         let label: Tensor<Rank0> = input.sum();
         labeled_data.push(LabeledTensorSample {
             input: input,
-            label: label.reshape(),
+            label: label.reshape((S {},)),
         });
     }
     let model = NAM::<S<32>, NUM_FEATURES>::new(2); // Example with 2 hidden layers
@@ -139,7 +139,7 @@ fn test_nam_learns_sum_function() {
     }
 
     let sample = labeled_data.get_sample(0);
-    let x: Tensor<(S<1>, S<3>)> = sample.input.reshape();
+    let x: Tensor<(S<1>, S<3>)> = sample.input.reshape((S {}, S {}));
     let y_true = sample.label;
 
     // Final check: model output should be close to expected values

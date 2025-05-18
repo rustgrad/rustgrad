@@ -29,7 +29,7 @@ impl Dropout {
             .into_dyn();
 
             let mask: Tensor<S> = Tensor::new(arr);
-            (mask * x).reshape()
+            (mask * x).reshape(S::default())
         } else {
             x
         }
@@ -41,14 +41,14 @@ impl Dropout {
 }
 
 #[derive(Debug, Clone)]
-pub struct TimeMixing<Dl: Dimension, Dc: Dimension, Dlc: Dimension> {
-    norm: TimeBatchNorm<Dl, Dc, Dlc>,
+pub struct TimeMixing<Dl: Dimension, Dc: Dimension> {
+    norm: TimeBatchNorm<Dl, Dc>,
     linear: LinearLayer<Dl, Dl>,
     non_linearity: bool,
     dropout: Dropout,
 }
 
-impl<Dl: Dimension, Dc: Dimension, Dlc: Dimension> TimeMixing<Dl, Dc, Dlc> {
+impl<Dl: Dimension, Dc: Dimension> TimeMixing<Dl, Dc> {
     pub fn new(non_linearity: bool, dropout_rate: f32) -> Self {
         Self {
             norm: TimeBatchNorm::new(),
@@ -85,15 +85,13 @@ impl<Dl: Dimension, Dc: Dimension, Dlc: Dimension> TimeMixing<Dl, Dc, Dlc> {
     }
 }
 
-struct FeatureMixing<Dl: Dimension, Dc: Dimension, DOut: Dimension, Dlo: Dimension> {
-    norm: TimeBatchNorm<Dl, DOut, Dlo>,
+struct FeatureMixing<Dl: Dimension, Dc: Dimension, DOut: Dimension> {
+    norm: TimeBatchNorm<Dl, DOut>,
     linear: LinearLayer<Dc, DOut>,
     project_layer: LinearLayer<Dc, DOut>,
     dropout: Dropout,
 }
-impl<Dl: Dimension, Dc: Dimension, DOut: Dimension, Dlc: Dimension>
-    FeatureMixing<Dl, Dc, DOut, Dlc>
-{
+impl<Dl: Dimension, Dc: Dimension, DOut: Dimension> FeatureMixing<Dl, Dc, DOut> {
     pub fn new(non_linearity: bool, dropout_rate: f32) -> Self {
         Self {
             norm: TimeBatchNorm::new(),
@@ -134,19 +132,11 @@ fn time_to_feature<Db: Dimension, Dc: Dimension, Dl: Dimension>(
     return feature_to_time(x);
 }
 
-pub struct MixingLayer<
-    Dl: Dimension,
-    Dc: Dimension,
-    DOut: Dimension,
-    Dlc: Dimension,
-    Dlo: Dimension,
-> {
-    time_mixing: TimeMixing<Dl, Dc, Dlc>,
-    feature_mixing: FeatureMixing<Dl, Dc, DOut, Dlo>,
+pub struct MixingLayer<Dl: Dimension, Dc: Dimension, DOut: Dimension> {
+    time_mixing: TimeMixing<Dl, Dc>,
+    feature_mixing: FeatureMixing<Dl, Dc, DOut>,
 }
-impl<Dl: Dimension, Dc: Dimension, DOut: Dimension, Dlc: Dimension, Dlo: Dimension>
-    MixingLayer<Dl, Dc, DOut, Dlc, Dlo>
-{
+impl<Dl: Dimension, Dc: Dimension, DOut: Dimension> MixingLayer<Dl, Dc, DOut> {
     pub fn new(non_linearity: bool, dropout_rate: f32) -> Self {
         Self {
             time_mixing: TimeMixing::new(non_linearity, dropout_rate),

@@ -26,12 +26,8 @@ impl Dimension for Dynamic {
     fn size(&self) -> usize {
         self.0
     }
-    fn from_size(size: usize) -> Option<Self> {
-        if size == usize::MAX {
-            Some(Dynamic(usize::MAX))
-        } else {
-            None
-        }
+    fn from_size(size: usize) -> Self {
+        Dynamic(size)
     }
 }
 impl PartialEq for Dynamic {
@@ -46,18 +42,25 @@ impl Default for Dynamic {
 }
 
 pub trait Shape: Debug + Default + Clone + 'static {
+    fn _shape(&self) -> ArrayShape;
     fn shape() -> ArrayShape;
     const NUM_DIMS: usize;
+    fn from_shape(shape: &[usize]) -> Self;
     // const Dims: [Dimension; NUM_DIMS];
 }
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DynamicShape;
 impl Shape for DynamicShape {
+    fn _shape(&self) -> ArrayShape {
+        unimplemented!("there is no runtime information for dynamic shapes")
+        // return None;
+    }
     fn shape() -> ArrayShape {
-        ArrayShape {
-            dims: vec![usize::MAX],
-        }
+        unimplemented!("there is no runtime information for dynamic shapes")
+    }
+    fn from_shape(shape: &[usize]) -> Self {
+        DynamicShape
     }
     const NUM_DIMS: usize = usize::MAX;
 }
@@ -67,7 +70,7 @@ pub trait Dimension:
     'static + Copy + Clone + std::fmt::Debug + Send + Sync + Eq + PartialEq + Default
 {
     fn size(&self) -> usize;
-    fn from_size(size: usize) -> Option<Self>;
+    fn from_size(size: usize) -> Self;
 }
 
 /// Represents a single dimension where all
@@ -82,8 +85,8 @@ impl Dimension for usize {
         *self
     }
     #[inline(always)]
-    fn from_size(size: usize) -> Option<Self> {
-        Some(size)
+    fn from_size(size: usize) -> Self {
+        size
     }
 }
 
@@ -96,12 +99,8 @@ impl<const M: usize> Dimension for S<M> {
         M
     }
     #[inline(always)]
-    fn from_size(size: usize) -> Option<Self> {
-        if size == M {
-            Some(S)
-        } else {
-            None
-        }
+    fn from_size(_size: usize) -> Self {
+        S
     }
 }
 
@@ -134,7 +133,22 @@ impl<M: Dimension> Shape for ArrayShape1<M> {
         }
     }
     const NUM_DIMS: usize = 1;
+
+    fn _shape(&self) -> ArrayShape {
+        ArrayShape {
+            dims: vec![self[0].size()],
+        }
+    }
+    fn from_shape(shape: &[usize]) -> Self {
+        assert_eq!(shape.len(), 1);
+        [M::from_size(shape[0])]
+    }
 }
+// impl<M: Dimension> for ArrayShape1<M> {
+//     fn new() -> Self {
+//         ArrayShape1[M::default()]
+//     }
+// }
 
 /// Compile time known shape with 0 dimensions
 pub type Rank0 = ();
@@ -153,6 +167,13 @@ impl Shape for Rank0 {
         ArrayShape { dims: vec![] }
     }
     const NUM_DIMS: usize = 0;
+
+    fn _shape(&self) -> ArrayShape {
+        ArrayShape { dims: vec![] }
+    }
+    fn from_shape(_shape: &[usize]) -> Self {
+        ()
+    }
 }
 
 impl<M: Dimension> Shape for Rank1<M> {
@@ -162,12 +183,31 @@ impl<M: Dimension> Shape for Rank1<M> {
         }
     }
     const NUM_DIMS: usize = 1;
+
+    fn _shape(&self) -> ArrayShape {
+        ArrayShape {
+            dims: vec![self.0.size()],
+        }
+    }
+    fn from_shape(shape: &[usize]) -> Self {
+        assert_eq!(shape.len(), 1);
+        (M::from_size(shape[0]),)
+    }
 }
 impl<M: Dimension, N: Dimension> Shape for Rank2<M, N> {
     fn shape() -> ArrayShape {
         ArrayShape {
             dims: vec![M::default().size(), N::default().size()],
         }
+    }
+    fn _shape(&self) -> ArrayShape {
+        ArrayShape {
+            dims: vec![self.0.size(), self.1.size()],
+        }
+    }
+    fn from_shape(shape: &[usize]) -> Self {
+        assert_eq!(shape.len(), 2);
+        (M::from_size(shape[0]), N::from_size(shape[1]))
     }
     const NUM_DIMS: usize = 2;
 }
@@ -181,6 +221,19 @@ impl<O: Dimension, M: Dimension, N: Dimension> Shape for Rank3<O, M, N> {
             ],
         }
     }
+    fn _shape(&self) -> ArrayShape {
+        ArrayShape {
+            dims: vec![self.0.size(), self.1.size(), self.2.size()],
+        }
+    }
+    fn from_shape(shape: &[usize]) -> Self {
+        assert_eq!(shape.len(), 3);
+        (
+            O::from_size(shape[0]),
+            M::from_size(shape[1]),
+            N::from_size(shape[2]),
+        )
+    }
     const NUM_DIMS: usize = 3;
 }
 
@@ -193,6 +246,20 @@ impl<P: Dimension, O: Dimension, M: Dimension, N: Dimension> Shape for Rank4<P, 
                 M::default().size(),
                 N::default().size(),
             ],
+        }
+    }
+    fn from_shape(shape: &[usize]) -> Self {
+        assert_eq!(shape.len(), 4);
+        (
+            P::from_size(shape[0]),
+            O::from_size(shape[1]),
+            M::from_size(shape[2]),
+            N::from_size(shape[3]),
+        )
+    }
+    fn _shape(&self) -> ArrayShape {
+        ArrayShape {
+            dims: vec![self.0.size(), self.1.size(), self.2.size(), self.3.size()],
         }
     }
     const NUM_DIMS: usize = 4;

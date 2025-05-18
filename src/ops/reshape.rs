@@ -14,12 +14,14 @@ struct TensorReshape<S: Shape, K: Shape> {
 }
 
 impl<S: Shape, K: Shape> TensorReshape<S, K> {
-    pub fn forward(input: Tensor<S>) -> Tensor<K> {
-        let output_shape = K::shape();
-        let new_data = input.data().into_shape_with_order(output_shape).unwrap();
+    pub fn forward(input: &Tensor<S>, output_shape: K) -> Tensor<K> {
+        let new_data = input
+            .data()
+            .into_shape_with_order(output_shape._shape())
+            .unwrap();
         let node = TensorReshape {
             input_shape: input.shape(),
-            tensor: input,
+            tensor: input.clone(),
             ph: PhantomData,
         };
         Tensor::new_with_prev(new_data, Rc::new(RefCell::new(node)))
@@ -53,13 +55,13 @@ impl<S: Shape, K: Shape> Operation<K> for TensorReshape<S, K> {
 }
 
 impl<S: Shape> Tensor<S> {
-    pub fn reshape<K: Shape>(self) -> Tensor<K> {
-        TensorReshape::<S, K>::forward(self)
+    pub fn reshape<K: Shape>(&self, output_shape: K) -> Tensor<K> {
+        TensorReshape::<S, K>::forward(self, output_shape)
     }
 
-    pub fn reshape_no_grad<K: Shape>(self) -> Tensor<K> {
-        let shape = self.shape();
-        let new_data = self.data().into_shape_with_order(shape.dims).unwrap();
+    pub fn reshape_no_grad<K: Shape>(&self, output_shape: K) -> Tensor<K> {
+        let dims = output_shape._shape().dims;
+        let new_data = self.data().into_shape_with_order(dims).unwrap();
         Tensor::new(new_data)
     }
 }

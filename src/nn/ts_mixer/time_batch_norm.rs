@@ -1,15 +1,15 @@
-use crate::dimensions::Dimension;
+use crate::dimensions::{Dimension, Dynamic};
 use crate::nn::BatchNorm1d;
 use crate::tensor::Tensor;
 
 /// A batch normalization layer that normalizes over the last two dimensions (time & feature).
 #[derive(Debug, Clone)]
-pub struct TimeBatchNorm<DT: Dimension, DC: Dimension, Dtc: Dimension> {
-    batch_norm: BatchNorm1d<Dtc>,
+pub struct TimeBatchNorm<DT: Dimension, DC: Dimension> {
+    batch_norm: BatchNorm1d<Dynamic>,
     _phantom: std::marker::PhantomData<(DT, DC)>,
 }
 
-impl<DT: Dimension, DC: Dimension, Dtc: Dimension> TimeBatchNorm<DT, DC, Dtc> {
+impl<DT: Dimension, DC: Dimension> TimeBatchNorm<DT, DC> {
     pub fn new() -> Self {
         Self {
             batch_norm: BatchNorm1d::new(0.99, 1e-5),
@@ -18,9 +18,10 @@ impl<DT: Dimension, DC: Dimension, Dtc: Dimension> TimeBatchNorm<DT, DC, Dtc> {
     }
 
     pub fn forward<DB: Dimension>(&mut self, x: Tensor<(DB, DT, DC)>) -> Tensor<(DB, DT, DC)> {
-        let x_reshaped = x.reshape::<(DB, Dtc)>(); // shape: (N, T * C)
+        let dimension = Dynamic::from_size(DT::default().size() * DC::default().size());
+        let x_reshaped = x.reshape::<(DB, Dynamic)>((DB::default(), dimension)); // shape: (N, T * C)
         let x_normed = self.batch_norm.forward(x_reshaped);
-        x_normed.reshape()
+        x_normed.reshape(x.runtime_shape()) // shape: (N, T, C)
     }
 
     pub fn parameters(&self) -> Vec<Tensor> {

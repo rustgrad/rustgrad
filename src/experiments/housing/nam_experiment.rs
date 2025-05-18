@@ -245,7 +245,7 @@ fn plot_shape_functions(
             // Create a single feature tensor with just the normalized value
             let shape_input_data = Array::from_vec(vec![normalized_val]);
             let shape_input: Tensor<Rank1<S<1>>> = Tensor::new(shape_input_data.into_dyn());
-            let shape_input: Tensor<(S<1>, S<1>)> = shape_input.reshape();
+            let shape_input: Tensor<(S<1>, S<1>)> = shape_input.reshape((S {}, S {}));
             let shape_output = shape_function.forward(shape_input);
 
             let output_val = shape_output.data().into_flat()[0];
@@ -416,10 +416,12 @@ pub fn run_housing_nam_experiment() -> Result<(), Box<dyn Error>> {
     let mut total_normalized_loss = 0.0;
     let mut total_denormalized_loss = 0.0;
     let mut samples = 0;
+    let xshape: (S<1>, S<NUM_FEATURES>) = (S {}, S {});
+    let ytrue_shape: (S<1>, S<1>) = (S {}, S {});
 
     for sample in &labeled_data {
-        let x: Tensor<(S<1>, S<NUM_FEATURES>)> = sample.input.clone().reshape();
-        let y_true: Tensor<(S<1>, S<1>)> = sample.label.clone().reshape();
+        let x: Tensor<(S<1>, S<NUM_FEATURES>)> = sample.input.clone().reshape(xshape);
+        let y_true: Tensor<(S<1>, S<1>)> = sample.label.clone().reshape(ytrue_shape);
 
         let y_pred = model.forward(x.clone());
 

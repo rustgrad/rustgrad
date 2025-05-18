@@ -169,6 +169,11 @@ impl<S: Shape> Tensor<S> {
         let shape = binding.array.shape();
         shape.to_vec().into()
     }
+    pub fn runtime_shape(&self) -> S {
+        let binding = self.container.borrow();
+        let shape = binding.array.shape();
+        S::from_shape(shape)
+    }
 }
 
 pub trait DimCompatible<Rhs: Dimension> {
