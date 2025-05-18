@@ -18,8 +18,12 @@ impl<DT: Dimension, DC: Dimension> TimeBatchNorm<DT, DC> {
     }
 
     pub fn forward<DB: Dimension>(&mut self, x: Tensor<(DB, DT, DC)>) -> Tensor<(DB, DT, DC)> {
-        let dimension = Dynamic::from_size(DT::default().size() * DC::default().size());
-        let x_reshaped = x.reshape::<(DB, Dynamic)>((DB::default(), dimension)); // shape: (N, T * C)
+        let dims: [usize; 3] = x.shape().dims();
+        let dimensions: (DB, Dynamic) = (
+            DB::from_size(dims[0]),
+            Dynamic::from_size(dims[1] * dims[2]),
+        );
+        let x_reshaped = x.reshape::<(DB, Dynamic)>(dimensions); // shape: (N, T * C)
         let x_normed = self.batch_norm.forward(x_reshaped);
         x_normed.reshape(x.runtime_shape()) // shape: (N, T, C)
     }
