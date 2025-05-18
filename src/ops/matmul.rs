@@ -376,7 +376,7 @@ mod tests {
         let test_1 = Tensor::<(S<2>, S<4>)>::new(
             array![[1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]].into_dyn(),
         ); // grad_2 = 2 * test_1
-        let test_1 = test_1.reshape_no_grad::<(S<4>, S<2>)>();
+        let test_1 = test_1.reshape_no_grad::<(S<4>, S<2>)>((S::default(), S::default()));
         let test_2 = test_0.clone().matmul(test_1);
         println!("forward: {:?}", test_2);
         println!("_____________________________");
