@@ -2,7 +2,8 @@ use ndarray::Array;
 use ndarray_rand::rand::{thread_rng, Rng};
 
 use crate::dimensions::{Dimension, Shape, UnkownShape};
-use crate::nn::{ts_mixer::TimeBatchNorm, LinearLayer};
+use crate::experiments::ts_mixer::TimeBatchNorm;
+use crate::nn::linear::LinearLayer;
 use crate::ops::max;
 use crate::tensor::{ShapeCompatible, Tensor};
 

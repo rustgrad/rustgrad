@@ -5,4 +5,3 @@ pub mod mlp;
 
 pub use linear::LinearLayer;
 pub use mlp::MLP;
-pub mod ts_mixer;
