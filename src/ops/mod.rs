@@ -21,6 +21,8 @@ pub mod permute;
 pub use permute::TensorPermute;
 pub mod stack;
 pub use stack::TensorStack;
+// pub mod update_value;
+// pub use update_value::UpdateValue;
 
 use matmul::MatMul;
 pub use scalar::*;

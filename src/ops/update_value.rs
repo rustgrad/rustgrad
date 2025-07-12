@@ -8,14 +8,14 @@ use crate::tensor::Tensor;
 use ndarray::Axis;
 
 #[derive(Debug, Clone)]
-pub struct Slice<SIn: Shape, SOut: Shape> {
+pub struct UpdateValue<SIn: Shape, SOut: Shape> {
     pub input: Tensor<SIn>,
-    pub index: usize,
-    pub axis: usize,
+    pub index: Vec<usize>,
     pub phantom: PhantomData<SOut>,
 }
+//TODO this is higlhy wip
 
-impl<SIn: Shape, SOut: Shape> Operation<SOut> for Slice<SIn, SOut> {
+impl<SIn: Shape, SOut: Shape> Operation<SOut> for UpdateValue<SIn, SOut> {
     fn backward(&self, output: &Tensor<SOut>) {
         let grad = output.container.borrow().grad.clone().unwrap();
         let input_shape = self.input.shape();
@@ -51,7 +51,7 @@ impl<SIn: Shape, SOut: Shape> Operation<SOut> for Slice<SIn, SOut> {
     }
 }
 impl<S: Shape> Tensor<S> {
-    pub fn slice<Out: Shape>(&self, axis: usize, index: usize) -> Tensor<Out> {
+    pub fn update_value<Out: Shape>(&self, axis: usize, index: usize) -> Tensor<Out> {
         // So for example x[:,0] -> x.slice(Axis(1),0)
         let view = self
             .container
@@ -75,9 +75,6 @@ impl<S: Shape> Tensor<S> {
                 Out::shape()
             ));
         Tensor::new_with_prev(view.into_dyn(), Rc::new(RefCell::new(op)))
-    }
-    pub fn i<SOut: Shape>(&self, index: usize) -> Tensor<SOut> {
-        self.slice(0, index)
     }
 }
 // use std::ops::Index;
