@@ -1,11 +1,40 @@
 use crate::dimensions::{Dimension, UnkownShape, S};
+use crate::ops::Operation;
 use crate::tensor::Tensor;
 use ndarray_rand::rand_distr::StandardNormal;
 
+#[derive(Debug)]
+pub struct Conv1DOperation<K: Dimension, DIn: Dimension, DOut: Dimension> {
+    pub input_tensor: Tensor<(K, DIn, usize)>, // Input tensor shape: (batch, in_channels, width)
+    pub weight: Tensor<(DOut, DIn, usize)>,
+    pub bias: Option<Tensor<(DOut,)>>,
+    pub slice: Vec<usize>,
+}
 /// 1D Convolutional Layer
+#[derive(Debug)]
 pub struct Conv1DLayer<DIn: Dimension, DOut: Dimension> {
     pub weight: Tensor<(DOut, DIn, usize)>,
     pub bias: Option<Tensor<(DOut,)>>,
+}
+
+impl<K: Dimension, DIn: Dimension, DOut: Dimension> Operation<(K, DOut)>
+    for Conv1DOperation<K, DIn, DOut>
+{
+    fn backward(&self, output: &Tensor<(K, DOut)>) {
+        todo!()
+    }
+
+    fn zero_graph(&self) {
+        todo!()
+    }
+
+    fn build_graph(&self) {
+        todo!()
+    }
+
+    fn clone_into_dynamic(&self) -> std::rc::Rc<std::cell::RefCell<dyn Operation<UnkownShape>>> {
+        todo!()
+    }
 }
 
 impl<DIn: Dimension, DOut: Dimension> Conv1DLayer<DIn, DOut> {
@@ -20,7 +49,7 @@ impl<DIn: Dimension, DOut: Dimension> Conv1DLayer<DIn, DOut> {
     /// x shape: (batch, in_channels, d)
     /// weight shape: (out_channels, in_channels, kernel_size)
     /// output shape: (batch, out_channels, output_width)
-    pub fn forward<K: Dimension>(&self, x: Tensor<(K, DIn, usize)>) -> Tensor<(K, DOut, usize)> {
+    pub fn forward<K: Dimension>(&self, x: Tensor<(K, DIn)>) -> Tensor<(K, DOut)> {
         let [batch_size, in_channels, width] = x.shape().dims(); // Assuming shape() returns unpacked dims
         let [out_channels, _, kernel_size] = self.weight.shape().dims();
 
