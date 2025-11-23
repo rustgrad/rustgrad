@@ -1,8 +1,10 @@
 use crate::dimensions::{Dimension, UnkownShape, S};
-use crate::nn::{Conv1DLayer, LinearLayer};
+use crate::nn::{conv1d::Conv1DLayer, LinearLayer};
 use crate::tensor::Tensor;
 
 /// A simple 1D Convolutional Neural Network model.
+/// Input shape: (batch, in_channels=1, width)
+/// Output shape: (batch, 1)
 pub struct CNNModel<DHidden: Dimension> {
     conv1: Conv1DLayer<S<1>, DHidden>,
     conv2: Conv1DLayer<DHidden, DHidden>,
@@ -20,10 +22,21 @@ impl<DHidden: Dimension> CNNModel<DHidden> {
         }
     }
 
-    pub fn forward<K: Dimension>(&self, x: Tensor<(K, S<1>)>) -> Tensor<(K, S<1>)> {
+    pub fn forward<K: Dimension, W: Dimension>(
+        &self,
+        x: Tensor<(K, S<1>, W)>,
+    ) -> Tensor<(K, S<1>)> {
+        // Conv1D layers: (batch, 1, width) -> (batch, DHidden, width')
         let mut x = self.conv1.forward(x).relu();
+        // (batch, DHidden, width') -> (batch, DHidden, width'')
         x = self.conv2.forward(x).relu();
-        x = self.fc1.forward(x).relu();
+
+        // Global average pooling: take mean across width dimension
+        // This reduces (batch, DHidden, width) to (batch, DHidden)
+        let x = x.mean_along(2);
+
+        // Linear layers: (batch, DHidden) -> (batch, DHidden) -> (batch, 1)
+        let x = self.fc1.forward(x).relu();
         self.fc2.forward(x)
     }
 
@@ -45,12 +58,12 @@ mod tests {
     #[test]
     fn test_cnn_forward() {
         let model = CNNModel::<S<4>>::new(); // hidden size = 4
-        let input = Tensor::<(usize, S<1>)>::ones((8, 1)); // batch size = 8
+        let input = Tensor::<(usize, S<1>, usize)>::zero(); // batch size = 8, channels = 1, width = dynamic
 
         let output = model.forward(input);
-        let (batch_size, output_dim) = output.shape();
+        let shape = output.shape();
 
-        assert_eq!(batch_size, 8);
-        assert_eq!(output_dim, 1); // since final output is S<1>
+        assert_eq!(shape.dims[0], 8);
+        assert_eq!(shape.dims[1], 1); // since final output is S<1>
     }
 }
