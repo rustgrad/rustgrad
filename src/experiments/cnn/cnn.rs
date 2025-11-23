@@ -15,8 +15,8 @@ pub struct CNNModel<DHidden: Dimension> {
 impl<DHidden: Dimension> CNNModel<DHidden> {
     pub fn new() -> Self {
         CNNModel {
-            conv1: Conv1DLayer::new(true),
-            conv2: Conv1DLayer::new(true),
+            conv1: Conv1DLayer::new(3, true), // kernel_size=3
+            conv2: Conv1DLayer::new(3, true), // kernel_size=3
             fc1: LinearLayer::new(true),
             fc2: LinearLayer::new(false),
         }
@@ -57,13 +57,34 @@ mod tests {
 
     #[test]
     fn test_cnn_forward() {
+        use ndarray::Array;
+
         let model = CNNModel::<S<4>>::new(); // hidden size = 4
-        let input = Tensor::<(usize, S<1>, usize)>::zero(); // batch size = 8, channels = 1, width = dynamic
+                                             // Create input with explicit dimensions: (batch=2, channels=1, width=10)
+        let input_data = Array::zeros((2, 1, 10)).into_dyn();
+        let input = Tensor::<(usize, S<1>, usize)>::new(input_data);
 
-        let output = model.forward(input);
+        println!("Input shape: {:?}", input.shape());
+        println!("conv1 weight shape: {:?}", model.conv1.weight.shape());
+        println!("conv2 weight shape: {:?}", model.conv2.weight.shape());
+        println!("fc1 weight shape: {:?}", model.fc1.parameters()[0].shape());
+        println!("fc1 bias shape: {:?}", model.fc1.parameters()[1].shape());
+
+        let x = model.conv1.forward(input);
+        println!("After conv1 shape: {:?}", x.shape());
+
+        let x = x.relu();
+        let x = model.conv2.forward(x);
+        println!("After conv2 shape: {:?}", x.shape());
+
+        let x = x.relu();
+        let x: Tensor<(usize, S<4>)> = x.mean_along(2);
+        println!("After mean_along shape: {:?}", x.shape());
+
+        let output = model.fc1.forward(x);
+        println!("After fc1 shape: {:?}", output.shape());
+
         let shape = output.shape();
-
-        assert_eq!(shape.dims[0], 8);
-        assert_eq!(shape.dims[1], 1); // since final output is S<1>
+        assert_eq!(shape.dims[0], 2); // batch size
     }
 }

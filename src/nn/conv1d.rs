@@ -1,7 +1,7 @@
 use crate::dimensions::{Dimension, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
-use ndarray_rand::rand_distr::StandardNormal;
+use ndarray_rand::RandomExt;
 
 #[derive(Debug)]
 pub struct Conv1DOperation<K: Dimension, DIn: Dimension, DOut: Dimension> {
@@ -38,10 +38,29 @@ impl<K: Dimension, DIn: Dimension, DOut: Dimension> Operation<(K, DOut)>
 }
 
 impl<DIn: Dimension, DOut: Dimension> Conv1DLayer<DIn, DOut> {
-    pub fn new(use_bias: bool) -> Self {
+    pub fn new(kernel_size: usize, use_bias: bool) -> Self {
+        use ndarray::Array;
+        use rand::distributions::Uniform;
+
+        let in_channels = DIn::default().size();
+        let out_channels = DOut::default().size();
+
+        // Initialize weight with shape (out_channels, in_channels, kernel_size)
+        let weight_data = Array::random(
+            (out_channels, in_channels, kernel_size),
+            Uniform::new(-0.5, 0.5),
+        ) * (2.0 / (in_channels * kernel_size) as f32).sqrt();
+
+        let bias = if use_bias {
+            let bias_data = Array::zeros(out_channels);
+            Some(Tensor::new(bias_data.into_dyn()))
+        } else {
+            None
+        };
+
         Conv1DLayer {
-            weight: Tensor::new_random(0.0, 1.0, StandardNormal),
-            bias: if use_bias { Some(Tensor::zero()) } else { None },
+            weight: Tensor::new(weight_data.into_dyn()),
+            bias,
         }
     }
 
@@ -127,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_conv1d_forward_shape() {
-        let layer = Conv1DLayer::<S<2>, S<3>>::new(true); // 2 in, 3 out
+        let layer = Conv1DLayer::<S<2>, S<3>>::new(3, true); // 2 in, 3 out, kernel_size=3
         let input = Tensor::<(usize, S<2>, usize)>::zero(); // batch=4, in_channels=2, width=10
         let output = layer.forward(input);
 
