@@ -86,6 +86,7 @@ impl<Dl: Dimension, Dc: Dimension> TimeMixing<Dl, Dc> {
     }
 }
 
+#[derive(Debug)]
 struct FeatureMixing<Dl: Dimension, Dc: Dimension, DOut: Dimension> {
     norm: TimeBatchNorm<Dl, DOut>,
     linear: LinearLayer<Dc, DOut>,
@@ -133,6 +134,7 @@ fn time_to_feature<Db: Dimension, Dc: Dimension, Dl: Dimension>(
     return feature_to_time(x);
 }
 
+#[derive(Debug)]
 pub struct MixingLayer<Dl: Dimension, Dc: Dimension, DOut: Dimension> {
     time_mixing: TimeMixing<Dl, Dc>,
     feature_mixing: FeatureMixing<Dl, Dc, DOut>,

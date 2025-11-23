@@ -4,6 +4,7 @@ use crate::{dimensions::Dimension, tensor::Tensor};
 
 use super::MixingLayer;
 
+#[derive(Debug)]
 pub struct TsMixer<L: Dimension, C: Dimension, DOut: Dimension, const HIDDEN_LAYERS: usize> {
     layers: [MixingLayer<L, C, C>; HIDDEN_LAYERS],
     last_layer: MixingLayer<L, C, DOut>,
