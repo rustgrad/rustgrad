@@ -7,6 +7,7 @@ pub(crate) struct AdamOptimizer {
     current_beta2: f32,
     beta2: f32,
     epsilon: f32,
+    weight_decay: f32,            // L2 regularization strength
     parameters: Vec<Tensor>,
     m: Vec<ndarray::ArrayD<f32>>, // First moment vector
     v: Vec<ndarray::ArrayD<f32>>, // Second moment vector
@@ -19,6 +20,7 @@ impl AdamOptimizer {
         beta1: f32,
         beta2: f32,
         epsilon: f32,
+        weight_decay: f32,
         parameters: Vec<Tensor>,
     ) -> AdamOptimizer {
         let m = parameters
@@ -36,6 +38,7 @@ impl AdamOptimizer {
             current_beta2: beta2,
             beta2,
             epsilon,
+            weight_decay,
             parameters,
             m,
             v,
@@ -47,6 +50,10 @@ impl AdamOptimizer {
     }
 
     pub fn new_with_defaults(lr: f32, parameters: Vec<Tensor>) -> AdamOptimizer {
+        Self::new_with_weight_decay(lr, 0.0, parameters)
+    }
+
+    pub fn new_with_weight_decay(lr: f32, weight_decay: f32, parameters: Vec<Tensor>) -> AdamOptimizer {
         let m = parameters
             .iter()
             .map(|p| ndarray::ArrayD::zeros(p.shape()))
@@ -62,6 +69,7 @@ impl AdamOptimizer {
             current_beta2: 0.999,
             beta2: 0.999,
             epsilon: 1e-8,
+            weight_decay,
             parameters,
             m,
             v,
@@ -79,7 +87,13 @@ impl Optimizer for AdamOptimizer {
         self.current_beta1 = self.current_beta1 * self.beta1;
         self.current_beta2 = self.current_beta2 * self.beta2;
         for (idx, param) in self.parameters.iter().enumerate() {
-            let grad = param.grad().expect("Gradient is None");
+            let mut grad = param.grad().expect("Gradient is None");
+
+            // Apply L2 regularization (weight decay)
+            if self.weight_decay > 0.0 {
+                grad = grad + self.weight_decay * param.data();
+            }
+
             self.m[idx] = self.beta1 * &self.m[idx] + (1.0 - self.beta1) * grad.clone();
             self.v[idx] = self.beta2 * &self.v[idx] + (1.0 - self.beta2) * grad.powi(2);
 
@@ -108,7 +122,7 @@ mod tests {
     #[test]
     fn test_adam_optimizer() {
         let mlp: MLP<S<3>, S<2>, S<100>, 1> = MLP::new();
-        let mut optimiser = AdamOptimizer::new(0.001, 0.9, 0.999, 1e-8, mlp.parameters());
+        let mut optimiser = AdamOptimizer::new(0.001, 0.9, 0.999, 1e-8, 0.0, mlp.parameters());
         let input: Tensor<(S<4>, S<3>)> = Tensor::new_random(0.0, 1.0, StandardNormal);
         let forwarded = mlp.forward(input.clone());
         let expected_output: Tensor<(S<4>, S<2>)> = Tensor::new_random(0.0, 1.0, StandardNormal);

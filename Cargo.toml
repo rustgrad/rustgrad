@@ -23,6 +23,10 @@ name = "housing_nam"
 path = "src/bin/housing_nam.rs"
 
 [[bin]]
+name = "iris_classifier"
+path = "src/bin/iris_classifier.rs"
+
+[[bin]]
 name = "adam_benchmark"
 path = "src/bin/adam_benchmark.rs"
 

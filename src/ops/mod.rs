@@ -31,6 +31,7 @@ pub use max::max;
 pub mod exp;
 pub mod log;
 pub mod softmax;
+pub mod dropout;
 
 use crate::{
     dimensions::{Rank1, Rank2, Shape, UnkownShape, S},
