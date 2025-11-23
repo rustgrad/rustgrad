@@ -28,7 +28,6 @@ RustGrad is a from-scratch implementation of automatic differentiation and neura
 ### Neural Network Modules
 
 - **LinearLayer**: Fully connected layers with optional activation
-- **Conv1DLayer**: 1D convolutional layers with configurable kernel sizes
 - **MLP**: Multi-layer perceptrons with arbitrary depth
 - **NAM**: Neural Additive Models for interpretable machine learning
 - **TSMixer**: Time series forecasting architecture
@@ -191,7 +190,6 @@ src/
 │   └── ...
 ├── nn/                 # Neural network layers
 │   ├── linear.rs
-│   ├── conv1d.rs
 │   ├── mlp.rs
 │   └── ...
 ├── optim/              # Optimization algorithms
@@ -243,25 +241,6 @@ Build with optimizations:
 ```bash
 cargo build --release
 ```
-
-## Benchmarks
-
-See `src/experiments/optimization/README.md` for detailed optimizer benchmarks.
-
-Example results on typical hardware:
-- MLP forward+backward: ~100-500 microseconds (depending on size)
-- Adam step: ~50-200 microseconds
-- Conv1D forward: ~200-800 microseconds
-
-## Roadmap
-
-- [ ] GPU support via CUDA/ROCm
-- [ ] Additional layers (Conv2D, LSTM, Transformer)
-- [ ] Model serialization/deserialization
-- [ ] Distributed training
-- [ ] More optimization algorithms (RMSprop, AdamW)
-- [ ] Data augmentation utilities
-- [ ] Pre-trained models
 
 ## Contributing
 
