@@ -28,6 +28,9 @@ use matmul::MatMul;
 pub use scalar::*;
 pub mod max;
 pub use max::max;
+pub mod exp;
+pub mod log;
+pub mod softmax;
 
 use crate::{
     dimensions::{Rank1, Rank2, Shape, UnkownShape, S},
