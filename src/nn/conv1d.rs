@@ -1,4 +1,4 @@
-use crate::dimensions::{Dimension, UnkownShape, S};
+use crate::dimensions::{Dimension, UnkownShape};
 use crate::ops::Operation;
 use crate::tensor::Tensor;
 use ndarray_rand::rand_distr::StandardNormal;
@@ -20,7 +20,7 @@ pub struct Conv1DLayer<DIn: Dimension, DOut: Dimension> {
 impl<K: Dimension, DIn: Dimension, DOut: Dimension> Operation<(K, DOut)>
     for Conv1DOperation<K, DIn, DOut>
 {
-    fn backward(&self, output: &Tensor<(K, DOut)>) {
+    fn backward(&self, _output: &Tensor<(K, DOut)>) {
         todo!()
     }
 
@@ -46,37 +46,68 @@ impl<DIn: Dimension, DOut: Dimension> Conv1DLayer<DIn, DOut> {
     }
 
     /// Forward pass for Conv1D
-    /// x shape: (batch, in_channels, d)
+    /// x shape: (batch, in_channels, width)
     /// weight shape: (out_channels, in_channels, kernel_size)
     /// output shape: (batch, out_channels, output_width)
-    pub fn forward<K: Dimension>(&self, x: Tensor<(K, DIn)>) -> Tensor<(K, DOut)> {
-        let [batch_size, in_channels, width] = x.shape().dims(); // Assuming shape() returns unpacked dims
-        let [out_channels, _, kernel_size] = self.weight.shape().dims();
+    pub fn forward<K: Dimension, W: Dimension>(
+        &self,
+        x: Tensor<(K, DIn, W)>,
+    ) -> Tensor<(K, DOut, usize)> {
+        use ndarray::Array;
+
+        let x_shape = x.shape();
+        let w_shape = self.weight.shape();
+
+        let batch_size = x_shape.dims[0];
+        let in_channels = x_shape.dims[1];
+        let width = x_shape.dims[2];
+
+        let out_channels = w_shape.dims[0];
+        let kernel_size = w_shape.dims[2];
 
         let output_width = width - kernel_size + 1;
-        let falttened_length = batch_size * in_channels * width;
-        let mut output: Vec<f32> = Vec::from_iter((0..falttened_length).map(|_| 0.0));
+
+        let x_data = x.data();
+        let w_data = self.weight.data();
+
+        // Reshape data to 3D for easier indexing
+        let x_array = x_data
+            .into_shape_with_order((batch_size, in_channels, width))
+            .unwrap();
+        let w_array = w_data
+            .into_shape_with_order((out_channels, in_channels, kernel_size))
+            .unwrap();
+
+        let mut output = Array::zeros((batch_size, out_channels, output_width));
 
         for b in 0..batch_size {
             for out_c in 0..out_channels {
                 for i in 0..output_width {
-                    let mut sum = Tensor::<(S<1>,)>::zero();
+                    let mut sum = 0.0;
                     for in_c in 0..in_channels {
                         for k in 0..kernel_size {
-                            let input_val: Tensor<(S<1>,)> = x.i(b).i(in_c).i(i + k);
-                            let weight_val: Tensor<(S<1>,)> = self.weight.i(out_c).i(in_c).i(k);
-                            sum = sum + input_val * weight_val;
+                            sum += x_array[[b, in_c, i + k]] * w_array[[out_c, in_c, k]];
                         }
                     }
-                    if let Some(bias) = self.bias.as_ref() {
-                        sum = sum + bias.i(out_c);
-                    }
-                    output.i(b).i(out_c).i(i) = output.i(b).i(out_c).i(i) + sum;
+                    output[[b, out_c, i]] = sum;
                 }
             }
         }
 
-        output
+        // Add bias if present
+        if let Some(bias) = self.bias.as_ref() {
+            let bias_data = bias.data();
+            let bias_array = bias_data.into_shape_with_order(out_channels).unwrap();
+            for b in 0..batch_size {
+                for out_c in 0..out_channels {
+                    for i in 0..output_width {
+                        output[[b, out_c, i]] += bias_array[out_c];
+                    }
+                }
+            }
+        }
+
+        Tensor::new(output.into_dyn())
     }
 
     pub fn parameters(&self) -> Vec<Tensor> {
@@ -91,17 +122,23 @@ impl<DIn: Dimension, DOut: Dimension> Conv1DLayer<DIn, DOut> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dimensions::S;
     use crate::tensor::Tensor;
 
     #[test]
     fn test_conv1d_forward_shape() {
         let layer = Conv1DLayer::<S<2>, S<3>>::new(true); // 2 in, 3 out
-        let input = Tensor::<(usize, S<2>, usize)>::ones((4, 2, 10)); // batch=4, in_channels=2, width=10
+        let input = Tensor::<(usize, S<2>, usize)>::zero(); // batch=4, in_channels=2, width=10
         let output = layer.forward(input);
 
-        let [batch, out_channels, out_width] = output.shape().dims();
+        let shape = output.shape();
+        let batch = shape.dims[0];
+        let out_channels = shape.dims[1];
+        let out_width = shape.dims[2];
+
         assert_eq!(batch, 4);
         assert_eq!(out_channels, 3);
-        assert_eq!(out_width, 10 - layer.weight.shape().2 + 1); // kernel_size = weight.shape().2
+        let kernel_size = layer.weight.shape().dims[2];
+        assert_eq!(out_width, 10 - kernel_size + 1);
     }
 }
