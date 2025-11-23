@@ -129,23 +129,27 @@ This example demonstrates:
 - Visualizing shape functions
 - TensorBoard logging
 
+### Iris Classification
+
+Train a neural network classifier on the classic Iris dataset:
+
+```bash
+cargo run --bin iris_classifier
+```
+
+This example demonstrates:
+- Multi-class classification with softmax
+- Cross-entropy loss
+- Confusion matrix visualization
+- Training/test accuracy tracking
+- Model evaluation metrics
+
 ### Adam Optimizer Benchmark
 
 Compare optimizer performance across different architectures:
 
 ```bash
 cargo run --bin adam_benchmark
-```
-
-### 1D CNN for Time Series
-
-```rust
-use rustgrad::experiments::cnn::CNNModel;
-use rustgrad::dimensions::S;
-
-let model = CNNModel::<S<64>>::new(); // 64 hidden units
-let input: Tensor<(usize, S<1>, usize)> = /* batch, channels, width */;
-let output = model.forward(input);
 ```
 
 ## Architecture
@@ -198,7 +202,7 @@ src/
 ├── nam.rs              # Neural Additive Models
 └── experiments/        # Example implementations
     ├── housing/        # California housing prediction
-    ├── cnn/            # 1D CNN example
+    ├── iris/           # Iris classification
     ├── optimization/   # Optimizer benchmarks
     └── ts_mixer/       # Time series forecasting
 ```
@@ -284,6 +288,43 @@ cargo clippy
 ```
 
 ## Examples in Detail
+
+### Iris Classification
+
+The Iris dataset classification demonstrates a complete machine learning workflow:
+
+```rust
+use rustgrad::nn::mlp::MLP;
+use rustgrad::dimensions::S;
+use rustgrad::optim::adam::AdamOptimizer;
+
+// Create a 3-layer MLP: 4 features -> 16 hidden -> 16 hidden -> 3 classes
+let model: MLP<S<4>, S<3>, S<16>, 2> = MLP::new();
+
+// Initialize Adam optimizer
+let mut optimizer = AdamOptimizer::new(0.001, model.parameters());
+
+// Training with cross-entropy loss
+for epoch in 0..epochs {
+    for batch in train_loader.iter_shuffled(epoch) {
+        let logits = model.forward(batch.input);
+        let probs = logits.softmax();
+        let loss = cross_entropy_loss(probs, batch.label);
+        
+        optimizer.zero_grad();
+        loss.backward();
+        optimizer.step();
+    }
+}
+```
+
+The experiment includes:
+- One-hot encoding for multi-class targets
+- Feature normalization
+- Train/test split (80/20)
+- Confusion matrix generation
+- Accuracy tracking over epochs
+- Visualization with plotters
 
 ### Neural Additive Models (NAM)
 
