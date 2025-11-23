@@ -5,6 +5,8 @@ A pure Rust deep learning framework with automatic differentiation, featuring co
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> **Note**: This is a learning project built to explore Rust and understand the fundamentals of deep learning frameworks like PyTorch. It's designed for educational purposes and experimentation rather than production use.
+
 ## Overview
 
 RustGrad is a from-scratch implementation of automatic differentiation and neural network training in Rust. It provides:
