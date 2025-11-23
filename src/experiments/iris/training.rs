@@ -36,10 +36,8 @@ pub fn cross_entropy_loss<const BATCH: usize>(
     // Cross-entropy: -sum(targets * log(predictions)) / batch_size
     // Add epsilon for numerical stability
     let epsilon = 1e-7;
-    let epsilon_tensor: Tensor<Rank2<S<BATCH>, S<NUM_CLASSES>>> = Tensor::new(ndarray::Array::from_elem(
-        predictions.shape(),
-        epsilon,
-    ));
+    let epsilon_tensor: Tensor<Rank2<S<BATCH>, S<NUM_CLASSES>>> =
+        Tensor::new(ndarray::Array::from_elem(predictions.shape(), epsilon));
     let pred_clipped = predictions.clone() + epsilon_tensor;
 
     let log_preds = pred_clipped.log();
@@ -147,7 +145,10 @@ pub fn train_classifier(
 
             // Calculate accuracy
             let pred_data = y_pred.data().into_dimensionality::<ndarray::Ix2>().unwrap();
-            let true_data = y_true_2d.data().into_dimensionality::<ndarray::Ix2>().unwrap();
+            let true_data = y_true_2d
+                .data()
+                .into_dimensionality::<ndarray::Ix2>()
+                .unwrap();
             let batch_accuracy = calculate_accuracy(&pred_data, &true_data);
             epoch_accuracy += batch_accuracy;
 

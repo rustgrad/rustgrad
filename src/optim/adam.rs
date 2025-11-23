@@ -7,7 +7,7 @@ pub(crate) struct AdamOptimizer {
     current_beta2: f32,
     beta2: f32,
     epsilon: f32,
-    weight_decay: f32,            // L2 regularization strength
+    weight_decay: f32, // L2 regularization strength
     parameters: Vec<Tensor>,
     m: Vec<ndarray::ArrayD<f32>>, // First moment vector
     v: Vec<ndarray::ArrayD<f32>>, // Second moment vector
@@ -53,7 +53,11 @@ impl AdamOptimizer {
         Self::new_with_weight_decay(lr, 0.0, parameters)
     }
 
-    pub fn new_with_weight_decay(lr: f32, weight_decay: f32, parameters: Vec<Tensor>) -> AdamOptimizer {
+    pub fn new_with_weight_decay(
+        lr: f32,
+        weight_decay: f32,
+        parameters: Vec<Tensor>,
+    ) -> AdamOptimizer {
         let m = parameters
             .iter()
             .map(|p| ndarray::ArrayD::zeros(p.shape()))

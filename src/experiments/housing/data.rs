@@ -147,10 +147,7 @@ pub fn load_housing_dataset(
         .from_reader(File::open(path)?);
 
     // Read all records
-    let records: Vec<HousingRecord> = rdr
-        .deserialize()
-        .filter_map(|result| result.ok())
-        .collect();
+    let records: Vec<HousingRecord> = rdr.deserialize().filter_map(|result| result.ok()).collect();
 
     // Calculate column means for imputation
     let column_means = calculate_column_statistics(&records);

@@ -13,8 +13,7 @@ use super::data::{
     FEATURE_NAMES, NUM_FEATURES,
 };
 use super::training::{
-    evaluate_model, train_nam_model, BATCH_SIZE, HIDDEN_SIZE, LEARNING_RATE, NUM_EPOCHS,
-    NUM_LAYERS,
+    evaluate_model, train_nam_model, BATCH_SIZE, HIDDEN_SIZE, LEARNING_RATE, NUM_EPOCHS, NUM_LAYERS,
 };
 use super::visualization::{plot_shape_functions, plot_training_loss};
 

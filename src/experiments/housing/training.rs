@@ -159,7 +159,10 @@ impl EvaluationMetrics {
     /// Prints the evaluation metrics in a formatted way
     pub fn print(&self) {
         println!("Final evaluation results:");
-        println!("  Normalized Mean Squared Error: {:.4}", self.normalized_mse);
+        println!(
+            "  Normalized Mean Squared Error: {:.4}",
+            self.normalized_mse
+        );
         println!("  Normalized RMSE: {:.4}", self.normalized_rmse);
         println!(
             "  Mean Squared Error (original scale): {:.4}",

@@ -17,19 +17,11 @@ pub const NUM_FEATURES: usize = 4;
 pub const NUM_CLASSES: usize = 3;
 
 /// Feature names in the Iris dataset
-pub const FEATURE_NAMES: [&str; NUM_FEATURES] = [
-    "sepal_length",
-    "sepal_width",
-    "petal_length",
-    "petal_width",
-];
+pub const FEATURE_NAMES: [&str; NUM_FEATURES] =
+    ["sepal_length", "sepal_width", "petal_length", "petal_width"];
 
 /// Class names in the Iris dataset
-pub const CLASS_NAMES: [&str; NUM_CLASSES] = [
-    "Iris-setosa",
-    "Iris-versicolor",
-    "Iris-virginica",
-];
+pub const CLASS_NAMES: [&str; NUM_CLASSES] = ["Iris-setosa", "Iris-versicolor", "Iris-virginica"];
 
 /// Minimum standard deviation threshold to avoid division by zero
 const MIN_STD_DEV: f32 = 1e-6;
@@ -83,10 +75,7 @@ pub fn load_iris_dataset(
         .from_reader(File::open(path)?);
 
     // Read all records
-    let records: Vec<IrisRecord> = rdr
-        .deserialize()
-        .filter_map(|result| result.ok())
-        .collect();
+    let records: Vec<IrisRecord> = rdr.deserialize().filter_map(|result| result.ok()).collect();
 
     let n_samples = records.len();
     let mut features = Vec::new();
@@ -207,10 +196,7 @@ pub fn train_test_split(
     features: Array2<f32>,
     labels: Array1<usize>,
     test_size: f32,
-) -> (
-    (Array2<f32>, Array1<usize>),
-    (Array2<f32>, Array1<usize>),
-) {
+) -> ((Array2<f32>, Array1<usize>), (Array2<f32>, Array1<usize>)) {
     let n_samples = features.shape()[0];
 
     // Group samples by class
@@ -249,16 +235,12 @@ pub fn train_test_split(
         test_labels_vec.push(labels[idx]);
     }
 
-    let train_features = Array2::from_shape_vec(
-        (train_indices.len(), NUM_FEATURES),
-        train_features_vec,
-    ).unwrap();
+    let train_features =
+        Array2::from_shape_vec((train_indices.len(), NUM_FEATURES), train_features_vec).unwrap();
     let train_labels = Array1::from_shape_vec(train_indices.len(), train_labels_vec).unwrap();
 
-    let test_features = Array2::from_shape_vec(
-        (test_indices.len(), NUM_FEATURES),
-        test_features_vec,
-    ).unwrap();
+    let test_features =
+        Array2::from_shape_vec((test_indices.len(), NUM_FEATURES), test_features_vec).unwrap();
     let test_labels = Array1::from_shape_vec(test_indices.len(), test_labels_vec).unwrap();
 
     ((train_features, train_labels), (test_features, test_labels))

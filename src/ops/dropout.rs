@@ -92,9 +92,9 @@ impl<S: Shape> Tensor<S> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
-    use crate::dimensions::{Rank1, S};
     use super::*;
+    use crate::dimensions::{Rank1, S};
+    use ndarray::array;
 
     #[test]
     fn test_dropout_inference() {
@@ -107,15 +107,18 @@ mod tests {
     #[test]
     fn test_dropout_training() {
         // During training, some values should be zeroed
-        let input = Tensor::<Rank1<S<100>>>::new(
-            ndarray::Array::from_elem(ndarray::IxDyn(&[100]), 1.0)
-        );
+        let input =
+            Tensor::<Rank1<S<100>>>::new(ndarray::Array::from_elem(ndarray::IxDyn(&[100]), 1.0));
         let result = input.dropout(0.5, true);
 
         // Count non-zero elements
         let non_zero = result.data().iter().filter(|&&x| x != 0.0).count();
 
         // Should have roughly 50% non-zero (allow for randomness)
-        assert!(non_zero > 30 && non_zero < 70, "Got {} non-zero elements", non_zero);
+        assert!(
+            non_zero > 30 && non_zero < 70,
+            "Got {} non-zero elements",
+            non_zero
+        );
     }
 }

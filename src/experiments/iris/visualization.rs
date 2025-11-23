@@ -25,12 +25,8 @@ pub fn plot_training_loss(
     let root = BitMapBackend::new(&output_path, (800, 600)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let max_loss = losses
-        .iter()
-        .fold(f32::NEG_INFINITY, |a, &b| a.max(b)) as f64;
-    let min_loss = losses
-        .iter()
-        .fold(f32::INFINITY, |a, &b| a.min(b)) as f64;
+    let max_loss = losses.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b)) as f64;
+    let min_loss = losses.iter().fold(f32::INFINITY, |a, &b| a.min(b)) as f64;
 
     let mut chart = ChartBuilder::on(&root)
         .caption("Training Loss", ("sans-serif", 40))
@@ -148,13 +144,19 @@ pub fn plot_confusion_matrix(
 
             // Draw cell
             root.draw(&Rectangle::new(
-                [(x as i32, y as i32), ((x + cell_size) as i32, (y + cell_size) as i32)],
+                [
+                    (x as i32, y as i32),
+                    ((x + cell_size) as i32, (y + cell_size) as i32),
+                ],
                 color.filled(),
             ))?;
 
             // Draw cell border
             root.draw(&Rectangle::new(
-                [(x as i32, y as i32), ((x + cell_size) as i32, (y + cell_size) as i32)],
+                [
+                    (x as i32, y as i32),
+                    ((x + cell_size) as i32, (y + cell_size) as i32),
+                ],
                 BLACK.stroke_width(2),
             ))?;
 
@@ -163,7 +165,10 @@ pub fn plot_confusion_matrix(
             root.draw_text(
                 &format!("{}", count),
                 &text_style,
-                ((x + cell_size / 2 - 15) as i32, (y + cell_size / 2 - 15) as i32),
+                (
+                    (x + cell_size / 2 - 15) as i32,
+                    (y + cell_size / 2 - 15) as i32,
+                ),
             )?;
         }
     }
@@ -172,18 +177,10 @@ pub fn plot_confusion_matrix(
     let label_style = TextStyle::from(("sans-serif", 25).into_font()).color(&BLACK);
 
     // Y-axis label
-    root.draw_text(
-        "True Class",
-        &label_style,
-        (10, 400),
-    )?;
+    root.draw_text("True Class", &label_style, (10, 400))?;
 
     // X-axis label
-    root.draw_text(
-        "Predicted Class",
-        &label_style,
-        (350, 750),
-    )?;
+    root.draw_text("Predicted Class", &label_style, (350, 750))?;
 
     // Class names on axes
     for i in 0..NUM_CLASSES {
@@ -193,7 +190,10 @@ pub fn plot_confusion_matrix(
         root.draw_text(
             class_name,
             &label_style,
-            (10, (margin + 100 + i * cell_size + cell_size / 2 - 10) as i32),
+            (
+                10,
+                (margin + 100 + i * cell_size + cell_size / 2 - 10) as i32,
+            ),
         )?;
 
         // X-axis class names

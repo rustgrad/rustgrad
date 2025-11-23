@@ -16,9 +16,7 @@ use super::training::{
     evaluate_classifier, train_classifier, BATCH_SIZE, DROPOUT_RATE, HIDDEN_SIZE, LEARNING_RATE,
     NUM_EPOCHS, NUM_HIDDEN_LAYERS, WEIGHT_DECAY,
 };
-use super::visualization::{
-    plot_confusion_matrix, plot_training_accuracy, plot_training_loss,
-};
+use super::visualization::{plot_confusion_matrix, plot_training_accuracy, plot_training_loss};
 
 /// Runs the Iris classification experiment
 ///
@@ -64,8 +62,11 @@ pub fn run_iris_experiment() -> Result<(), Box<dyn Error>> {
     let mut writer = SummaryWriter::new(&("./logdir_iris".to_string()));
 
     println!("Setting up dataloader and optimizer...");
-    let mut dataloader: LabeledTensorDataLoader<(S<NUM_FEATURES>,), (S<NUM_CLASSES>,), S<BATCH_SIZE>> =
-        LabeledTensorDataLoader::new(train_data.clone());
+    let mut dataloader: LabeledTensorDataLoader<
+        (S<NUM_FEATURES>,),
+        (S<NUM_CLASSES>,),
+        S<BATCH_SIZE>,
+    > = LabeledTensorDataLoader::new(train_data.clone());
 
     let params = model.parameters();
     let mut opt = AdamOptimizer::new_with_weight_decay(LEARNING_RATE, WEIGHT_DECAY, params);

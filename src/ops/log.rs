@@ -51,9 +51,9 @@ impl<S1: Shape> Tensor<S1> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
-    use crate::dimensions::{Rank1, S};
     use super::*;
+    use crate::dimensions::{Rank1, S};
+    use ndarray::array;
 
     #[test]
     fn test_log_forward() {

@@ -33,9 +33,7 @@ impl<S: Shape> TensorSoftmax<S> {
             let exp_vals = shifted.mapv(|x| x.exp());
 
             // Sum along last axis and normalize
-            let sum_exp = exp_vals
-                .sum_axis(Axis(1))
-                .insert_axis(Axis(1));
+            let sum_exp = exp_vals.sum_axis(Axis(1)).insert_axis(Axis(1));
 
             let result = exp_vals / sum_exp;
 
@@ -113,16 +111,15 @@ impl<S: Shape> Tensor<S> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
-    use crate::dimensions::{Rank2, S};
     use super::*;
+    use crate::dimensions::{Rank2, S};
+    use ndarray::array;
 
     #[test]
     fn test_softmax_forward() {
         // Test case: 2 samples, 3 classes
-        let input = Tensor::<Rank2<S<2>, S<3>>>::new(
-            array![[1.0, 2.0, 3.0], [1.0, 1.0, 1.0]].into_dyn()
-        );
+        let input =
+            Tensor::<Rank2<S<2>, S<3>>>::new(array![[1.0, 2.0, 3.0], [1.0, 1.0, 1.0]].into_dyn());
         let result = input.softmax();
         let output = result.data();
 
@@ -142,9 +139,7 @@ mod tests {
     #[test]
     fn test_softmax_uniform_input() {
         // When all inputs are the same, softmax should give uniform distribution
-        let input = Tensor::<Rank2<S<1>, S<3>>>::new(
-            array![[1.0, 1.0, 1.0]].into_dyn()
-        );
+        let input = Tensor::<Rank2<S<1>, S<3>>>::new(array![[1.0, 1.0, 1.0]].into_dyn());
         let result = input.softmax();
         let output = result.data();
 
