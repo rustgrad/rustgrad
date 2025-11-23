@@ -55,6 +55,11 @@ impl<S: Shape> Tensor<S> {
         let shape = ArrayShape { dims };
         return Tensor::new(Array::<f32, IxDyn>::zeros(shape));
     }
+    pub fn ones() -> Tensor<S> {
+        let dims = S::shape().dims.clone();
+        let shape = ArrayShape { dims };
+        return Tensor::new(Array::<f32, IxDyn>::ones(shape));
+    }
     pub fn new_random<IdS>(mean: f32, std: f32, distribution: IdS) -> Tensor<S>
     where
         IdS: Distribution<f32>,

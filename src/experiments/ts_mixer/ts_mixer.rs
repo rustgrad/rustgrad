@@ -32,7 +32,7 @@ mod ts_mixer_tests {
 
     #[test]
     fn test_ts_mixer() {
-        // let ts_mixer: TsMixer<S<5>, S<4>, S<1>, 6> = TsMixer::new(0.01);
+        let ts_mixer: TsMixer<S<5>, S<4>, S<1>, 6> = TsMixer::new(0.01);
         // println!("{:?}", ts_mixer);
     }
 }
