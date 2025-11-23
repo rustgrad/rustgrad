@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn test_conv1d_forward_shape() {
         let layer = Conv1DLayer::<S<2>, S<3>>::new(true); // 2 in, 3 out
-        let input = Tensor::<(usize, S<2>, usize)>::zero(); // batch=4, in_channels=2, width=10
+        let input = Tensor::<(S<4>, S<2>, S<10>)>::ones(); // batch=4, in_channels=2, width=10
         let output = layer.forward(input);
 
         let shape = output.shape();
