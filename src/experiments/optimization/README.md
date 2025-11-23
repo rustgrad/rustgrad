@@ -12,15 +12,39 @@ The benchmark includes:
 
 ## Running the Benchmark
 
-To run the benchmark:
+### RustGrad Benchmark
+
+To run the RustGrad benchmark:
 
 ```bash
+# Debug build (slower)
 cargo run --bin adam_benchmark
+
+# Release build (for fair comparison)
+cargo run --release --bin adam_benchmark
 ```
 
-## Visualizing Results
+### PyTorch Comparison
 
-Currently, results are printed to the console. Future improvements could include generating plots for a more visual presentation of the benchmark results.
+To compare with PyTorch's Adam optimizer, run the included Python script:
+
+```bash
+# Make sure you have PyTorch installed
+pip install torch
+
+# Run the benchmark
+python3 src/experiments/optimization/pytorch_benchmark.py
+```
+
+The PyTorch benchmark uses the exact same configuration as the RustGrad benchmark:
+- Same MLP architecture (10 input → 64 hidden → 1 output)
+- Same batch size (64)
+- Same number of iterations
+- Same learning rates and hidden sizes
+
+**Note**: For a fair comparison, always compare release builds:
+- RustGrad: `cargo run --release --bin adam_benchmark`
+- PyTorch: Already optimized by default
 
 ## Implementation Notes
 
@@ -36,3 +60,17 @@ The optimization process includes:
 3. Backward pass (gradient calculation)
 4. Optimization step (parameter updates)
 5. Gradient zeroing
+
+## Expected Results
+
+Performance characteristics:
+- **Learning Rate Impact**: Minimal, as the computational cost is dominated by forward/backward passes
+- **Hidden Size Impact**: Larger hidden sizes increase time proportionally to parameter count
+- **RustGrad vs PyTorch**: PyTorch may be faster due to highly optimized BLAS libraries and C++/CUDA backend
+
+## Visualizing Results
+
+Currently, results are printed to the console. Future improvements could include:
+- Generating plots comparing RustGrad vs PyTorch
+- CSV output for further analysis
+- Performance over training epochs

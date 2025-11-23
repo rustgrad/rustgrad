@@ -242,9 +242,30 @@ Build with optimizations:
 cargo build --release
 ```
 
+**Performance vs PyTorch**: While RustGrad is currently slower than PyTorch (which uses highly optimized BLAS libraries and a C++/CUDA backend), there are many opportunities for optimization. See [PERFORMANCE_OPTIMIZATION.md](PERFORMANCE_OPTIMIZATION.md) for detailed strategies to improve performance, including:
+- BLAS integration (2-5x speedup)
+- Reducing memory allocations
+- Operation fusion
+- GPU support
+
+### Benchmarks
+
+To compare RustGrad with PyTorch:
+```bash
+# RustGrad (use release build!)
+cargo run --release --bin adam_benchmark
+
+# PyTorch
+python3 src/experiments/optimization/pytorch_benchmark.py
+```
+
+See `src/experiments/optimization/README.md` for detailed benchmarking information.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+Performance improvements are especially welcome! See [PERFORMANCE_OPTIMIZATION.md](PERFORMANCE_OPTIMIZATION.md) for optimization opportunities.
 
 ### Development Setup
 
@@ -363,7 +384,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Inspired by PyTorch and JAX
+- Inspired by PyTorch
 - Built on top of [ndarray](https://github.com/rust-ndarray/ndarray) for efficient array operations
 - TensorBoard integration via [tensorboard-rs](https://github.com/elbaro/tensorboard-rs)
 
